@@ -23,7 +23,6 @@ def test():
     for item in genelist.keys():
         concat.load_single_genes(genelist[item]['workdir'], genelist[item]["pickle"], item)
 
-
     concat.combine()
     concat.sp_seq_counter()
     sp_to_keep = concat.sp_to_keep()
@@ -59,7 +58,5 @@ def test():
         break
 
     len_after = len(concat.comb_seq[gene])
-
-    #
 
     assert len_before + 1 == len_after
