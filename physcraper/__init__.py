@@ -762,6 +762,12 @@ class AlignTreeTax(object):
             fi.close()
         for tax in prune:
             self.otu_dict[tax.label]["^physcraper:status"] = "deleted in prune short"
+            # Note: remove_taxon: raises no error, remove_taxon_label: raises error
+            # self.aln.taxon_namespace.remove_taxon(tax.label)
+            # self.tre.taxon_namespace.remove_taxon(tax.label)
+            # self.remove_taxa_aln_tre(tax.label)
+        # debug([self.aln.taxon_namespace, len(self.aln.taxon_namespace)])
+        # debug([self.tre.taxon_namespace, len(self.tre.taxon_namespace)])
         assert self.aln.taxon_namespace == self.tre.taxon_namespace
         assert treed_taxa.issubset(aln_ids)
         self.orig_seqlen = [len(self.aln[tax].symbols_as_string().replace("-", "").replace("N", "")) for tax in self.aln]
@@ -1157,6 +1163,8 @@ class IdDicts(object):
         self.spn_to_ncbiid = {}  # spn to ncbi_id, it's only fed by the ncbi_data_parser, but makes it faster
         self.ncbiid_to_spn = {}
         self.mrca_ott = mrca  # mrca_list
+        # debug((self.mrca_ott))
+        assert type(self.mrca_ott) in [int, list] or self.mrca_ott is None
         self.mrca_ncbi = set()  # corresponding ids for mrca_ott list
         fi = open(config_obj.ott_ncbi)
         for lin in fi:
@@ -1496,7 +1504,11 @@ class PhyscraperScrape(object):
         self.repeat = 1  # used to determine if we continue updating the tree
         self.newseqs_acc = []  # all ever added Genbank accession numbers during any PhyScraper run, used to speed up adding process
         self.blacklist = []  # remove sequences by default
-        self.seq_filter = ['deleted', 'subsequence,', 'not', "removed", "deleted,", "local"]
+        # self.acc_list_mrca = []  # all gb_ids of a given mrca. Used to limit possible seq to add.
+        # if self.config.blast_loc == 'local' and len(self.acc_list_mrca) == 0:
+        #     self.acc_list_mrca = self.get_all_acc_mrca()
+            # debug(self.acc_list_mrca)
+        self.seq_filter = ['deleted', 'subsequence,', 'not', "removed", "deleted,", "local"]  # TODO MK: try to move completely to FilterBlast class
         self.reset_markers()
         self.unpublished = False  # used to look for local unpublished seq that shall be added.
         self.path_to_local_seq = False  # path to unpublished seq.
@@ -1809,6 +1821,12 @@ class PhyscraperScrape(object):
                             if gb_id.split(".") == 1:
                                 debug(gb_id)
                             if gb_id not in self.data.gb_dict:  # skip ones we already have
+                            # gb_id = int(alignment.title.split('|')[1])  # 1 is for gi
+                            # assert type(gb_id) is int
+                            # SHOULD NOT BE NECESSARY....IS WEBBLAST HAS THE TAXON ALREADY LIMITED
+                            # if len(self.acc_list_mrca) >= 1 and (gb_id not in self.acc_list_mrca):
+                            #     pass
+                            # else:
                                 self.new_seqs[gb_id] = hsp.sbjct
                                 gi_id = alignment.title.split('|')[1]
                                 gb_acc = alignment.__dict__['accession']
@@ -2031,6 +2049,7 @@ class PhyscraperScrape(object):
                 if len(seq.replace("-", "").replace("N", "")) > seq_len_cutoff:
                     if self.config.blast_loc != "remote":
                         tax_name = None
+                        debug("go to add and seq_built")
                         # ######################################################
                         # ### new implementation of rank for delimitation
                         if type(self.mrca_ncbi) is int:
