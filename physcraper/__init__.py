@@ -282,7 +282,8 @@ class ConfigObj(object):
                 download_date = os.path.getmtime(self.ncbi_parser_nodes_fn)
                 download_date = datetime.datetime.fromtimestamp(download_date)
                 today = datetime.datetime.now()
-                time_passed = (today - download_date).days
+                time_passed = (today - download_date).days    
+                # debug([download_date, today, time_passed])
                 if time_passed >= 90:
                     print("Do you want to update taxonomy databases from ncbi? Note: This is a US government website! "
                           "You agree to their terms")
@@ -1061,7 +1062,9 @@ def get_mrca_ott(ott_ids):
     synth_tree_ott_ids = []
     ott_ids_not_in_synth = []
     for ott in ott_ids:
+        debug(ott)
         try:
+            # debug("try")
             tree_of_life.mrca(ott_ids=[ott], wrap_response=False)
             synth_tree_ott_ids.append(ott)
         except:
@@ -1099,7 +1102,6 @@ def get_ott_ids_from_otu_dict(otu_dict):  # TODO put into data obj?
             ott_ids.append(otu["^ot:ottId"])
         except KeyError:
             pass
-
 
 #####################################
 
@@ -1163,6 +1165,7 @@ class IdDicts(object):
         self.spn_to_ncbiid = {}  # spn to ncbi_id, it's only fed by the ncbi_data_parser, but makes it faster
         self.ncbiid_to_spn = {}
         self.mrca_ott = mrca  # mrca_list
+        # debug(type(self.mrca_ott))
         # debug((self.mrca_ott))
         assert type(self.mrca_ott) in [int, list] or self.mrca_ott is None
         self.mrca_ncbi = set()  # corresponding ids for mrca_ott list
@@ -1180,6 +1183,7 @@ class IdDicts(object):
             fi = open("{}/id_map.txt".format(workdir))
             for lin in fi:
                 self.acc_ncbi_dict[int(lin.split(",")[0])] = lin.split(",")[1]
+                debug("where do we have the id_map.txt?")
         if config_obj.blast_loc == 'remote':
             self.otu_rank = {}  # used only for web queries - contains taxonomic hierarchy information
         else:  # ncbi parser contains information about spn, tax_id, and ranks
@@ -1209,7 +1213,6 @@ class IdDicts(object):
                 ncbi_id = self.otu_rank[ott_name]["taxon id"]
             else:
                 ncbi_id = self.ncbi_parser.get_id_from_name(ott_name)
-
         else:
             tx = APIWrapper().taxomachine
             nms = tx.taxon(ott_id)
@@ -1623,6 +1626,9 @@ class PhyscraperScrape(object):
                                           num_threads=self.config.num_threads)
         else:
             debug("use BLAST webservice")
+            # debug(query)
+            # debug(equery)
+            # debug(self.config.hitlist_size)
             result_handle = AWSWWW.qblast("blastn",
                                           "nt",
                                           query,
@@ -2370,7 +2376,7 @@ class PhyscraperScrape(object):
                 self.data.remove_taxa_aln_tre(tax.label)
                 self.data.otu_dict[tax.label]['^physcraper:status'] = "deleted, Genbank identifier is part of blacklist"
         self.data.prune_short()
-        debug(self.data.tre.as_string(schema='newick'))
+        # debug(self.data.tre.as_string(schema='newick'))
 
     def generate_streamed_alignment(self):
         """runs the key steps and then replaces the tree and alignment with the expanded ones"""
@@ -2384,6 +2390,8 @@ class PhyscraperScrape(object):
             if len(self.new_seqs_otu_id) > 0:
                 self.write_query_seqs()
                 self.align_query_seqs()
+                # self.data.reconcile()
+                # self.data.prune_short()  # cannot happen here, as aln has new seq but tre not
                 self.place_query_seqs()
                 self.prune_short()
                 self.est_full_tree()
@@ -2606,6 +2614,8 @@ class FilterBlast(PhyscraperScrape):
         return: self.sp_seq_d
         """
         debug("make_sp_seq_dict")
+        # debug('self.new_seqs.keys()')
+        # debug(self.new_seqs.keys())
         for key in self.sp_d:
             # loop to populate dict. key1 = sp name, key2= gb id, value = seq,
             # number of items in key2 will be filtered according to threshold and already present seq
