@@ -193,6 +193,7 @@ class ConfigObj(object):
             "your unmapped statement `%s` in the config file is not remove or keep"
             % self.unmapped
         )
+
         debug("shared blast folder?")
         debug(self.gb_id_filename)
         debug("check db file status?")
@@ -1492,11 +1493,11 @@ class PhyscraperScrape(object):
         self.logfile = "{}/logfile".format(self.workdir)
         self.data = data_obj
         self.ids = ids_obj
-        self.config = self.ids.config
+        self.config = self.ids.config  # TODO: this is already part of self.ids, information are doubled.
         self.new_seqs = {}  # all new seq after read_blast_wrapper
         self.new_seqs_otu_id = {}  # only new seq which passed remove_identical
-        self.otu_by_gi = {}
-        self._to_be_pruned = []
+        self.otu_by_gi = {}  # TODO: What was this intended for? we don't use it
+        self._to_be_pruned = []  # TODO: What was this intended for? We don't use it
         self.mrca_ncbi = ids_obj.ott_to_ncbi[data_obj.ott_mrca]
         self.tmpfi = "{}/physcraper_run_in_progress".format(self.workdir)
         self.blast_subdir = "{}/current_blast_run".format(self.workdir)
@@ -2589,6 +2590,7 @@ class FilterBlast(PhyscraperScrape):
                                     value_d = ncbi.get_taxid_translator([downtorank_id])
                                     downtorank_name = value_d[int(downtorank_id)]
                     else:
+                        # tax_id = self.ids.ncbi_parser.get_id_from_name(tax_name)
                         downtorank_id = self.ids.ncbi_parser.get_downtorank_id(tax_id, self.downtorank)
                         downtorank_name = self.ids.ncbi_parser.get_name_from_id(downtorank_id)
                     tax_name = downtorank_name
@@ -3021,6 +3023,11 @@ class FilterBlast(PhyscraperScrape):
         :return: writes output to file
         """
         debug("write out infos")
+        # if len(self.sp_d) == 0:
+        #     sp_d = self.sp_dict(downtorank)
+        # else:
+        #     sp_d = self.sp_d
+
         sp_d = self.sp_dict(downtorank)
         sp_info = {}
         for k in sp_d:
