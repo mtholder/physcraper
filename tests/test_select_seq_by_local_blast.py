@@ -55,6 +55,7 @@ def test_select_seq_by_local_blast():
                 if count_dict["seq_present"] > threshold:
                     count += 0
     filteredScrape.how_many_sp_to_keep(threshold, selectby)
+
     assert count == len(filteredScrape.filtered_seq) and count>0
   
 # #added before
