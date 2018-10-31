@@ -61,7 +61,7 @@ data_obj.dump()
 sys.stdout.write("setting up id dictionaries\n")
 sys.stdout.flush()
 
-ids = IdDicts(conf, workdir=workdir)
+# ids = IdDicts(conf, workdir=workdir)
 
 # Now combine the data, the ids, and the configuration into a single physcraper scrape object
 filteredScrape = FilterBlast(data_obj, ids)
@@ -77,7 +77,7 @@ if filteredScrape.unpublished is True:  # use unpublished data
 
     # filteredScrape.make_otu_dict_entry_unpubl()
     filteredScrape.run_blast()
-    filteredScrape.read_blast()
+    filteredScrape.read_blast_wrapper()
     filteredScrape.remove_identical_seqs()
 
 test = False
