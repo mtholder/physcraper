@@ -11,7 +11,6 @@ import json
 import configparser
 import pickle
 import random
-import urllib2
 from copy import deepcopy
 from ete2 import NCBITaxa
 import physcraper.AWSWWW as AWSWWW
@@ -29,9 +28,13 @@ from peyotl.nexson_syntax import extract_tree, \
     PhyloSchema
 # extension functions
 import concat  # is the local concat class
-import ncbi_data_parser  # is the ncbi data parser class and associated functions
-import local_blast
+from . import ncbi_data_parser  # is the ncbi data parser class and associated functions
+from . import local_blast
 
+if sys.version_info < (3, ):
+    from urllib2 import HTTPError
+else:
+    from urllib.error import HTTPError
 
 _DEBUG = 0
 _DEBUG_MK = 0
@@ -81,7 +84,7 @@ def get_raw_input():
             x = raw_input("Please write either 'yes' or 'no': ")
             if x == "yes" or x == "no":
                 is_valid = 1  # set it to 1 to validate input and to terminate the while..not loop
-        except ValueError, e:
+        except ValueError as e:
             print ("'%s' is not a valid answer." % e.args[0].split(": ")[1])
     return x
 
@@ -131,25 +134,25 @@ class ConfigObj(object):
             sys.stdout.write("Building config object\n")
         debug(configfi)
         debug(os.path.isfile(configfi))
-        assert os.path.isfile(configfi)
+        assert os.path.isfile(configfi), 'file `%s` does not exists' % configfi
         config = configparser.ConfigParser()
         config.read(configfi)
         self.e_value_thresh = config['blast']['e_value_thresh']
-        assert is_number(self.e_value_thresh)
+        assert is_number(self.e_value_thresh), 'value `%s` does not exists' % self.e_value_thresh
         self.hitlist_size = int(config['blast']['hitlist_size'])
         self.seq_len_perc = float(config['physcraper']['seq_len_perc'])
-        assert 0 < self.seq_len_perc < 1
+        assert 0 < self.seq_len_perc < 1, 'value `%s` is not between 0 and 1' % self.seq_len_perc
         self.phylesystem_loc = config['phylesystem']['location']
         assert (self.phylesystem_loc in ['local', 'api'])  # default is api, but can run on local version of OpenTree datastore
         self.ott_ncbi = config['taxonomy']['ott_ncbi']  # TODO: how do we update the file?
-        assert os.path.isfile(self.ott_ncbi)
+        assert os.path.isfile(self.ott_ncbi), 'file `%s` does not exists' % self.ott_ncbi
         # rewrites relative path to absolute path so that it behaves when changing dirs
         self.id_pickle = os.path.abspath(config['taxonomy']['id_pickle'])
         self.email = config['blast']['Entrez.email']
-        assert '@' in self.email
+        assert '@' in self.email, 'your email `%s` does not have an @ sign' % self.email
         self.blast_loc = config['blast']['location']
         self.num_threads = config['blast'].get('num_threads')
-        assert self.blast_loc in ['local', 'remote']
+        assert self.blast_loc in ['local', 'remote'], 'your blast location `%s` is not remote or local' % self.email
         if self.blast_loc == 'local':
             self.blastdb = config['blast']['localblastdb']
             self.url_base = None
@@ -167,7 +170,7 @@ class ConfigObj(object):
             self._download_ncbi_parser()
             self._download_localblastdb()
         self.unmapped = config['blast']['unmapped']
-        assert self.unmapped in ['remove', 'keep']
+        assert self.unmapped in ['remove', 'keep'], 'your unmapped statement `%s` in the config file is not remove or keep' % self.unmapped
 
         debug("shared blast folder?")
         debug(self.gb_id_filename)
@@ -279,7 +282,7 @@ def get_dataset_from_treebase(study_id,
     """
     try:
         nexson = get_nexson(study_id, phylesystem_loc)
-    except urllib2.HTTPError, err:
+    except HTTPError as err:
         sys.stderr.write(err)
     # except:  # TODO: seems to be an http error. Did not fgure out how to handle them (requests.exceptions.HTTPError)
         sys.stderr.write("couldn't find study id {} in phylesystem location {}\n".format(study_id, phylesystem_loc))
@@ -1073,13 +1076,13 @@ def get_ott_ids_from_otu_dict(otu_dict):  # TODO put into data obj?
 class IdDicts(object):
     """Class contains different taxonomic identifiers and helps to find the corresponding ids between ncbi and OToL
 
-        ####To build the class the following is needed:
+        #### To build the class the following is needed:
             
           * **config_obj**: Object of class config (see above)
           * **workdir**: the path to the assigned working directory
           * **mrca**: mrca as defined by input, can be a class
 
-        ####During the initializing process the following self objects are generated:
+        #### During the initializing process the following self objects are generated:
           * **self.workdir**: contains path of working directory
           * **self.config**: contains the Config class object
           * **self.ott_to_ncbi**: dictionary
@@ -1209,13 +1212,13 @@ class IdDicts(object):
                             ncbi_id = Entrez.read(Entrez.esearch(db="taxonomy", term=tax_name, RetMax=100))['IdList'][0]
 
                         ncbi_id = int(ncbi_id)
-                    except (IndexError, urllib2.HTTPError), err:  # TODO: is either IndexError or urllib2.HTTPError: HTTP Error 400: Bad Request
+                    except (IndexError, HTTPError) as err:
                         if i < tries - 1:  # i is zero indexed
                             continue
                         else:
                             raise
                     break
-            except (IndexError, urllib2.HTTPError), err:  # TODO: is either IndexError or urllib2.HTTPError: HTTP Error 400: Bad Request
+            except (IndexError, HTTPError) as err:
                 debug("except")
                 try:
                     ncbi = NCBITaxa()
@@ -1225,7 +1228,7 @@ class IdDicts(object):
                         tax_name = "'{}'".format(tax_name)
                         tax_info = ncbi.get_name_translator([tax_name])
                     ncbi_id = int(tax_info.items()[0][1][0])
-                except: 
+                except (IndexError, HTTPError) as err:
                     sys.stderr.write("Taxon name does not match any name in ncbi. Check that name is written "
                                      "correctly: {}! We set it to unidentified".format(tax_name))
                     tax_name = 'unidentified'
@@ -1294,7 +1297,7 @@ class IdDicts(object):
                     for i in range(tries):
                         try:
                             handle = Entrez.efetch(db="nucleotide", id=gb_id, retmode="xml")
-                        except (IndexError, urllib2.HTTPError) as e:
+                        except (IndexError, HTTPError) as e:
                             if i < tries - 1:  # i is zero indexed
                                 continue
                             else:
@@ -1316,7 +1319,7 @@ class IdDicts(object):
                 for i in range(tries):
                     try:
                         handle = Entrez.efetch(db="nucleotide", id=gb_id, retmode="xml")
-                    except (IndexError, urllib2.HTTPError) as e:
+                    except (IndexError, HTTPError) as e:
                         if i < tries - 1:  # i is zero indexed
                             continue
                         else:
@@ -1395,12 +1398,12 @@ class PhyscraperScrape(object):  # TODO do I want to be able to instantiate this
     """
     This is the class that does the perpetual updating
 
-        ####To build the class the following is needed:
+        #### To build the class the following is needed:
 
           * **data_obj**: Object of class ATT (see above)
           * **ids_obj**: Object of class IdDict (see above)
 
-        ####During the initializing process the following self.objects are generated:
+        #### During the initializing process the following self.objects are generated:
 
           * **self.workdir**: path to working directory retrieved from ATT object = data_obj.workdir
           * **self.logfile**: path of logfile
@@ -1434,7 +1437,7 @@ class PhyscraperScrape(object):  # TODO do I want to be able to instantiate this
           * **self.unpublished**: True/False. Used to look for local unpublished seq that shall be added if True.
           * **self.path_to_local_seq:** Usually False, contains path to unpublished sequences if option is used.
 
-        ####Following functions are called during the init-process:
+        #### Following functions are called during the init-process:
         * **self.reset_markers()**: 
              adds things to self: I think they are used to make sure certain function run, if program crashed and pickle file is read in.
             * self._blasted: 0/1, if run_blast() was called, it is set to 1 for the round.
@@ -2107,7 +2110,7 @@ class PhyscraperScrape(object):  # TODO do I want to be able to instantiate this
             subprocess.call(["papara",
                              "-t", "random_resolve.tre",
                              "-s", "aln_ott.phy",
-                             "-j", "{}".format(self.config.num_threads),  # TODO MK: gives error, try to implement for speed up
+                             "-j", "{}".format(int(self.config.num_threads)),
                              "-q", self.newseqs_file,
                              "-n", papara_runname])  # FIXME directory ugliness
             if _VERBOSE:
@@ -2241,6 +2244,8 @@ class PhyscraperScrape(object):  # TODO do I want to be able to instantiate this
         -t: starting tree
         -b: bootstrap random seed
         -#: bootstrap stopping criteria
+        -z: specifies file with multiple trees
+
         """
         os.chdir(self.workdir)
        
@@ -2254,7 +2259,6 @@ class PhyscraperScrape(object):  # TODO do I want to be able to instantiate this
                              "-n", "{}".format(self.date)])
             # make bipartition tree
             # is the -f b command
-            # -z specifies file with multiple trees
             subprocess.call(["raxmlHPC-PTHREADS", "-T", "{}".format(num_threads), "-m", "GTRCAT",
                              "-s", "previous_run/papara_alignment.extended",
                              "-p", "1", "-f", "a", "-x", "1", "-#", "autoMRE",
@@ -2283,7 +2287,6 @@ class PhyscraperScrape(object):  # TODO do I want to be able to instantiate this
                              "-n", "{}".format(self.date)])
             # make bipartition tree
             # is the -f b command
-            # -z specifies file with multiple trees
             subprocess.call(["raxmlHPC", "-m", "GTRCAT",
                              "-s", "previous_run/papara_alignment.extended",
                              "-p", "1", "-f", "a", "-x", "1", "-#", "autoMRE",
@@ -2479,8 +2482,9 @@ class FilterBlast(PhyscraperScrape):
         self.filtered_seq = {}
         self.downtorank = None
 
-    def add_setting_to_self(self, downtorank, threshold, blacklist = None):
+    def add_setting_to_self(self, downtorank, threshold):
         """
+        Add FilterBlast items to self.
 
         :param downtorank:
         :param threshold:
@@ -2488,7 +2492,6 @@ class FilterBlast(PhyscraperScrape):
         """
         self.threshold = threshold
         self.downtorank = downtorank
-        self.blacklist = blacklist
 
 
     def sp_dict(self, downtorank=None):
@@ -2902,9 +2905,6 @@ class FilterBlast(PhyscraperScrape):
                                 elif query_count + seq_present <= threshold:
                                     self.add_all(tax_id)
 
-
-
-
             # # if len(self.sp_d[tax_id]) <= threshold:  # add all stuff to self.filtered_seq[gi_n]
             # #     self.add_all(tax_id)
             # elif len(self.sp_d[tax_id]) > threshold:  # filter number of sequences
@@ -3005,10 +3005,6 @@ class FilterBlast(PhyscraperScrape):
         :return: writes output to file
         """
         debug("write out infos")
-        # if len(self.sp_d) == 0:
-        #     sp_d = self.sp_dict(downtorank)
-        # else:
-        #     sp_d = self.sp_d
         sp_d = self.sp_dict(downtorank)
         sp_info = {}
         for k in sp_d:

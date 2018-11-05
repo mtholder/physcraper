@@ -495,12 +495,16 @@ def filter_data_run(seqaln,
             filteredScrape.dump()
             sys.stdout.write("Filter the sequences\n")
             if threshold is not None:
+                
                 filteredScrape.sp_dict(downtorank)
                 filteredScrape.make_sp_seq_dict()
                 filteredScrape.how_many_sp_to_keep(threshold=threshold, selectby=selectby)
                 filteredScrape.replace_new_seq()
             sys.stdout.write("Calculate the phylogeny\n")
             filteredScrape.generate_streamed_alignment()
+            filteredScrape.data.write_otus("otu_info", schema='table')
+            filteredScrape.write_otu_info(downtorank)
+
             filteredScrape.dump()
     while filteredScrape.repeat == 1:
         filteredScrape.data.write_labelled(label='^ot:ottTaxonName', add_gb_id=True)
