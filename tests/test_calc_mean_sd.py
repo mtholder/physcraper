@@ -36,8 +36,8 @@ fn_path = './tests/data/precooked/fixed/local-blast/{}'.format(fn)
 fn_path = os.path.abspath(fn_path)
 print(fn_path)
 os.chdir(os.path.join(filteredScrape.workdir, "blast"))
-local_blast.run_local_blast(filteredScrape.workdir, fn_path, fn_path,
-                               output=os.path.join(filteredScrape.workdir, "blast/output_{}.xml".format(fn)))
+local_blast.run_filter_blast(filteredScrape.workdir, fn_path, fn_path,
+                             output=os.path.join(filteredScrape.workdir, "blast/output_{}.xml".format(fn)))
 
 output_blast = os.path.join(filteredScrape.workdir, "blast/output_{}.xml".format(fn))
 xml_file = open(output_blast)

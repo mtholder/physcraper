@@ -41,13 +41,13 @@ for taxonID in filteredScrape.sp_d:
         # print(taxonID)
         blast_seq = filteredScrape.sp_seq_d[taxonID].keys()[0]
         seq = filteredScrape.sp_seq_d[taxonID][blast_seq]
-        local_blast.write_blast_files(filteredScrape.workdir, taxonID, seq, fn=str(taxonID))
+        local_blast.write_filterblast_files(filteredScrape.workdir, taxonID, seq, fn=str(taxonID))
         # print(filteredScrape.sp_seq_d[taxonID].keys()[1:] )
         blast_db = [item for item in filteredScrape.sp_seq_d[taxonID].keys()[1:] if len(item.split(".")) >= 2]
         # print(blast_db)
         for blast_key in blast_db:
             seq = filteredScrape.sp_seq_d[taxonID][blast_key]
-            local_blast.write_blast_files(filteredScrape.workdir, blast_key, seq, db=True, fn=str(taxonID))
+            local_blast.write_filterblast_files(filteredScrape.workdir, blast_key, seq, db=True, fn=str(taxonID))
         break
 
 # test starts here:
@@ -55,8 +55,8 @@ blast_db = 1268580
 blast_seq = 1268580
 key = 1268580
 
-local_blast.run_local_blast(filteredScrape.workdir, blast_seq, blast_db)
-local_blast.read_local_blast(filteredScrape.workdir, filteredScrape.sp_seq_d[key], blast_db)
+local_blast.run_filter_blast(filteredScrape.workdir, blast_seq, blast_db)
+local_blast.read_filter_blast(filteredScrape.workdir, filteredScrape.sp_seq_d[key], blast_db)
 
 blast_out = "{}/blast/output_{}_tobeblasted.xml".format(workdir, key)
 

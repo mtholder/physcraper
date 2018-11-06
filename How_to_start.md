@@ -46,15 +46,16 @@ After the single-gene datasets are updated, the data can be concatenated. Either
         * Install a local Blast database:
 
             General information about the BLAST database can be found here: ftp://ftp.ncbi.nlm.nih.gov/blast/documents/blastdb.html.
-    
+        
             In Linux to install the BLAST database do the following (for Windows and MAC please use google to figure it out, there should be plenty of information.):
-
+            Note that you can also have the program do the installation for you. If you specify in your config file, that the `location = local`, it will ask you if you want to install the different databases.
+            
           * `open a terminal`
           * `cd /to/the/folder/of/your/future/blastdb`  
           * `sudo apt-get install ncbi-blast+` # if not already installed earlier
           * `wget 'ftp://ftp.ncbi.nlm.nih.gov/blast/db/nt.*'`  # this downloads all nt-compressed files
           * `update_blastdb nt`
-          * `cat *.tar.gz | tar -xvzf - -i`, macOS `tar` does nto support the `-i` flag,  you need to use homebrew to `brew install gnu-tar` and replace the `tar` command by `gtar`
+          * `cat *.tar.gz | tar -xvzf - -i`  # macOS `tar` does not support the `-i` flag,  you need to use homebrew to `brew install gnu-tar` and replace the `tar` command by `gtar`
           * `blastdbcmd -db nt -info`
               
              The last command shows you if it worked correctly. 'nt' means, we are making the nucleotide database.
@@ -64,7 +65,7 @@ After the single-gene datasets are updated, the data can be concatenated. Either
              
         *  install the taxonomy database:
             
-            install ncbi taxonomy database to retreive taxon information from BLAST searches 
+            install ncbi taxonomy database to retrieve taxon information from BLAST searches into the same directory as your blastdb from the step before.
             
               * `cd /to/the/folder/of/your/blastdb`
               * `wget 'ftp://ftp.ncbi.nlm.nih.gov/blast/db/taxdb.tar.gz'` # Download the taxdb archive
@@ -72,7 +73,7 @@ After the single-gene datasets are updated, the data can be concatenated. Either
     
         * install the taxonomic rank database:
              *  `wget 'ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz'`
-             * `gunzip  -cd taxdump.tar.gz | (tar xvf - names.dmp nodes.dmp)`
+             *  `gunzip  -cd taxdump.tar.gz | (tar xvf - names.dmp nodes.dmp)`  # moves files into `tests/data/`
         * updating the databases:
         
              The databases need to be update regularly, the program will check the dates of your databases and will ask you to update the databases after 60 days. If your databases are older, you will be asked for input, if you want to update the databases. 
@@ -203,7 +204,7 @@ And now you just need to wait...
 
 There are some more features that can be changed if you know where, we will change the code hopefully soon, to make that easier adjustable.
 
-* time lapse for blasting: at the moment this is set to be 14 days. If you want to adjust the timing change `run_blast()` in the wrapper to `run_blast(delay = your_value)`
+* time lapse for blasting: at the moment this is set to be 14 days. If you want to adjust the timing change `run_blast_wrapper()` in the wrapper to `run_blast_wrapper(delay = your_value)`
 * trim method: by default sequences will be trimmed from the alignment if it has not at least 75% of the total sequence length. This can be changed in `./physcraper/__init__.py`, in the function `trim()` the value for `taxon_missingness`. 
 * change the most recent common ancestor (mrca): often phylogenies include outgroups, and someone might not be interested in updating that part of the tree. This can be avoided by defining the most recent common ancestor. It requires the OpenTreeOfLife identifier for the group of interest. 
     
