@@ -21,7 +21,7 @@ try:
     data_obj = pickle.load(open("tests/data/precooked/tiny_dataobj.p", 'rb'))
     data_obj.workdir = absworkdir
     ids = IdDicts(conf, workdir=data_obj.workdir)
-    ids.acc_ncbi_dict = pickle.load(open("tests/data/precooked/tiny_gi_map.p", "rb"))
+    ids.acc_ncbi_dict = pickle.load(open("tests/data/precooked/tiny_acc_map.p", "rb"))
 except:
     sys.stdout.write("\n\nTest FAILED\n\n")
     sys.exit()
@@ -35,7 +35,7 @@ for file_name in src_files:
     full_file_name = os.path.join(src, file_name)
     if (os.path.isfile(full_file_name)):
         shutil.copy(full_file_name, dest)
-noblackScrape.read_blast()
+noblackScrape.read_blast_wrapper()
 noblackScrape.remove_identical_seqs()
 noblackScrape.generate_streamed_alignment()
 
@@ -45,11 +45,11 @@ print("run with blacklist")
 blacklist = [429489230]
 absworkdir = os.path.abspath(workdir)
 try:
-    conf = ConfigObj(configfi)
+    conf = ConfigObj(configfi, interactive=False)
     data_obj = pickle.load(open("tests/data/precooked/tiny_dataobj.p", 'rb'))
     data_obj.workdir = absworkdir
     ids = IdDicts(conf, workdir=data_obj.workdir)
-    ids.acc_ncbi_dict = pickle.load(open("tests/data/precooked/tiny_gi_map.p", "rb"))
+    ids.acc_ncbi_dict = pickle.load(open("tests/data/precooked/tiny_acc_map.p", "rb"))
 except:
     sys.stdout.write("\n\nTest FAILED\n\n")
     sys.exit()
@@ -65,8 +65,8 @@ for file_name in src_files:
     full_file_name = os.path.join(src, file_name)
     if (os.path.isfile(full_file_name)):
         shutil.copy(full_file_name, dest)
-filteredScrape.acc_list_mrca = pickle.load(open("tests/data/precooked/acc_list_mrca.p", 'rb'))
-filteredScrape.read_blast()
+# filteredScrape.acc_list_mrca = pickle.load(open("tests/data/precooked/acc_list_mrca.p", 'rb'))
+filteredScrape.read_blast_wrapper()
 filteredScrape.remove_identical_seqs()
 filteredScrape.generate_streamed_alignment()
 

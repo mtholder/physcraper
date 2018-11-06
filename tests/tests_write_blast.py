@@ -23,7 +23,7 @@ try:
     data_obj = pickle.load(open("tests/data/precooked/tiny_dataobj.p", 'rb'))
     data_obj.workdir = absworkdir
     ids = IdDicts(conf, workdir=data_obj.workdir)
-    ids.acc_ncbi_dict = pickle.load(open("tests/data/precooked/tiny_gi_map.p", "rb"))
+    ids.acc_ncbi_dict = pickle.load(open("tests/data/precooked/tiny_acc_map.p", "rb"))
 
 except:
     sys.stdout.write("\n\nTest FAILED\n\n")
@@ -31,7 +31,7 @@ except:
 filteredScrape = FilterBlast(data_obj, ids)
 filteredScrape._blasted = 1
 blast_dir = "tests/data/precooked/fixed/tte_blast_files"
-filteredScrape.acc_list_mrca = pickle.load(open("tests/data/precooked/acc_list_mrca.p", 'rb'))
+# filteredScrape.acc_list_mrca = pickle.load(open("tests/data/precooked/acc_list_mrca.p", 'rb'))
 filteredScrape.read_blast_wrapper(blast_dir=blast_dir)
 filteredScrape.remove_identical_seqs()
 filteredScrape.sp_dict(downtorank)
@@ -41,11 +41,11 @@ for taxonID in filteredScrape.sp_d:
 	if len(filteredScrape.sp_seq_d[taxonID]) > treshold:
 	    blast_seq = filteredScrape.sp_seq_d[taxonID].keys()[0]
 	    seq = filteredScrape.sp_seq_d[taxonID][blast_seq]
-	    local_blast.write_blast_files(workdir, taxonID, seq)
+	    local_blast.write_filterblast_files(workdir, taxonID, seq)
 	    blast_db = filteredScrape.sp_seq_d[taxonID].keys()[1:]
 	    for blast_key in blast_db:
 	    	seq = filteredScrape.sp_seq_d[taxonID][blast_key]
-	    	local_blast.write_blast_files(workdir, blast_key, seq, db=True, fn=str(taxonID))
+	    	local_blast.write_filterblast_files(workdir, blast_key, seq, db=True, fn=str(taxonID))
 	    break
 try:
 	blast_file_blast = "{}/blast/{}_tobeblasted".format(workdir, taxonID)

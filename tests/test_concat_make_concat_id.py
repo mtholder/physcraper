@@ -1,5 +1,4 @@
 import sys
-import os
 from physcraper.concat import Concat
 
 #
@@ -17,7 +16,6 @@ sys.stdout.write("\ntests Concat func make_concat_id_dict\n")
 
 
 concat = Concat(workdir_comb, email)
-# print(os.getcwd())
 for item in genelist.keys():
     concat.load_single_genes(genelist[item]['workdir'], genelist[item]["pickle"], item)
 
@@ -35,8 +33,8 @@ for genename in concat.single_runs:
 
 len_single = len(set(spnl))
 # print(set(spnl))
-# print(concat.sp_gi_comb)
-len_concat_id_dict = len(concat.sp_gi_comb)
+# print(concat.sp_acc_comb)
+len_concat_id_dict = len(concat.sp_acc_comb)
 
 
 # print(len_single, len_concat_id_dict)
