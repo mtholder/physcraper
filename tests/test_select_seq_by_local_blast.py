@@ -26,7 +26,6 @@ def test_select_seq_by_local_blast():
     ids = physcraper.IdDicts(conf, workdir=data_obj.workdir)
     ids.acc_ncbi_dict = pickle.load(open("tests/data/precooked/tiny_acc_map.p", "rb"))
 
-
     filteredScrape =  physcraper.FilterBlast(data_obj, ids)
     filteredScrape.add_setting_to_self(downtorank, threshold)
 

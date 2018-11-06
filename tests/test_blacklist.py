@@ -46,6 +46,7 @@ def test_blacklist():
 
     blacklist = ['JX895340.1']
     absworkdir = os.path.abspath(workdir)
+
     conf = ConfigObj(configfi, interactive=False)
     data_obj = pickle.load(open("tests/data/precooked/tiny_dataobj.p", 'rb'))
     data_obj.workdir = absworkdir

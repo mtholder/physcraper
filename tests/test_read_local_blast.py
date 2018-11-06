@@ -62,4 +62,3 @@ def test_read_local_blast():
         with open(blast_out) as f:
             first_line = f.readline()
             assert len(first_line.strip()) != 0
-          

@@ -59,5 +59,6 @@ def test_remove_id_seq():
             pass
     filteredScrape.new_seqs_otu_id = tmp_dict
     expected_add = 1
+
     assert expected_add == len(filteredScrape.new_seqs_otu_id)
     sys.stdout.write("todo: add check that newly added seq are checked. they are, but there is no test")

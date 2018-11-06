@@ -1,5 +1,4 @@
 import sys
-import os
 from physcraper.concat import Concat
 
 #
@@ -37,4 +36,5 @@ def test():
     # print(set(spnl))
     # print(concat.sp_acc_comb)
     len_concat_id_dict = len(concat.sp_acc_comb)
+
     assert len_single == len_concat_id_dict

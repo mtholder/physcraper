@@ -11,7 +11,6 @@ mattype = "fasta"
 workdir = "tests/output/opentree"
 configfi = "tests/data/remotencbi.config"
 
-
 sys.stdout.write("\nTesting 'opentree scrape (1 round)'\n")
 conf = physcraper.ConfigObj(configfi, interactive=False)
 print "1. {}".format(conf.email)

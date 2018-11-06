@@ -7,7 +7,6 @@ workdir_ets = "runs/tiny_comb_ets"
 email = "martha.kandziora@yahoo.com"
 pickle_fn = "scrape_checkpoint.p"
 
-
 workdir_comb = "tests/output/impl_concat"
 genelist = {"its": {"workdir": workdir_its, "pickle": pickle_fn}, "ets": {"workdir": workdir_ets, "pickle": pickle_fn}}
 

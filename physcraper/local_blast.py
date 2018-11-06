@@ -17,7 +17,7 @@ def debug(msg):
     """
     if _DEBUG_MK == 1:
         print(msg)
-    
+
 
 debug("Current local_blast version number: 10252018.0")
 

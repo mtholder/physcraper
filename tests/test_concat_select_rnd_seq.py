@@ -16,9 +16,6 @@ def test():
 
     # get to test status
 
-    sys.stdout.write("\ntests Concat func select_rnd_seq\n")
-
-
     concat = Concat(workdir_comb, email)
     for item in genelist.keys():
         concat.load_single_genes(genelist[item]['workdir'], genelist[item]["pickle"], item)
@@ -36,6 +33,7 @@ def test():
     # part of make_sp_gene_dict
 
     len_before = len(concat.comb_seq)
+
 
     while len(concat.tmp_dict.keys()) >= 1:
         del_gi = {}

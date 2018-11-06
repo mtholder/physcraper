@@ -21,7 +21,6 @@ def test_loop_for_write_blast_files():
     data_obj.workdir = absworkdir
     ids = IdDicts(conf, workdir=data_obj.workdir)
     ids.acc_ncbi_dict = pickle.load(open("tests/data/precooked/tiny_acc_map.p", "rb"))
-
     filteredScrape = FilterBlast(data_obj, ids)
     filteredScrape.add_setting_to_self(downtorank, threshold)
     # filteredScrape.acc_list_mrca = pickle.load(open("tests/data/precooked/acc_list_mrca.p", 'rb'))
@@ -43,8 +42,6 @@ def test_loop_for_write_blast_files():
                         taxonfn = filteredScrape.loop_for_write_blast_files(key)
                                     
 # MAKE TEST FOR loop_for_write_blast_files
-
-
     for key in filteredScrape.sp_d:
         count = 0
         count_int = 0

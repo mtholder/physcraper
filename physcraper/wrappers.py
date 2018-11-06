@@ -259,7 +259,6 @@ def filter_OTOL(study_id,
         # Now combine the data, the ids, and the configuration into a single physcraper scrape object
         filteredScrape = FilterBlast(data_obj, ids)
         filteredScrape.add_setting_to_self(downtorank, threshold)
-
         filteredScrape.blacklist = blacklist
         if add_unpubl_seq is not None:
             filteredScrape.unpublished = True
@@ -338,7 +337,7 @@ def add_unpubl_to_backbone(seqaln,
         sys.stdout.write("setting up Data Object\n")
         sys.stdout.flush()
         # read the config file into a configuration object
-        conf = ConfigObj(configfi, interactive=False)
+        conf = ConfigObj(configfi, interactive=True)
 
         # Generate an linked Alignment-Tree-Taxa object
         data_obj = generate_ATT_from_files(seqaln=seqaln, 
@@ -364,9 +363,8 @@ def add_unpubl_to_backbone(seqaln,
 
         # Now combine the data, the ids, and the configuration into a single physcraper scrape object
         filteredScrape = FilterBlast(data_obj, ids)
-        
+       
         filteredScrape.add_setting_to_self(downtorank, threshold)
-
         filteredScrape.blacklist = blacklist
         if add_unpubl_seq is not None:
             filteredScrape.unpublished = True
@@ -515,7 +513,6 @@ def filter_data_run(seqaln,
             filteredScrape.dump()
             sys.stdout.write("Filter the sequences\n")
             if threshold is not None:
-                
                 filteredScrape.sp_dict(downtorank)
                 filteredScrape.make_sp_seq_dict()
                 filteredScrape.how_many_sp_to_keep(threshold=threshold, selectby=selectby)
@@ -606,7 +603,6 @@ def run_with_settings(settings):
 
         filteredScrape = FilterBlast(data_obj, ids, settings)
         filteredScrape.add_setting_to_self(settings.downtorank, settings.threshold)
-
         filteredScrape.write_otu_info(settings.downtorank)
 
         if settings.add_unpubl_seq is not None:

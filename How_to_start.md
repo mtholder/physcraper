@@ -12,7 +12,6 @@ After the single-gene datasets are updated, the data can be concatenated. Either
 
 ### Before you can start
 
-
 #### 1. install the dependencies:
 
 * [PaPaRa](http://sco.h-its.org/exelixis/web/software/papara/index.html) - alignment tool

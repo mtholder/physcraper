@@ -193,7 +193,6 @@ class ConfigObj(object):
             "your unmapped statement `%s` in the config file is not remove or keep"
             % self.unmapped
         )
-
         debug("shared blast folder?")
         debug(self.gb_id_filename)
         debug("check db file status?")
@@ -2262,7 +2261,6 @@ class PhyscraperScrape(object):
             os.rename(filename, "{}/{}_tmp".format(self.workdir, filename.split("/")[-1]))
         try:
             num_threads = int(self.config.num_threads)
-
             if self.backbone is not True:
                 subprocess.call(["raxmlHPC-PTHREADS", "-T", "{}".format(num_threads), "-m", "GTRCAT",
                                  "-s", "papara_alignment.extended",
@@ -2433,7 +2431,6 @@ class PhyscraperScrape(object):
                     sys.stdout.write("No new sequences after filtering.\n")
                 self.repeat = 0
                 self.calculate_bootstrap()
-
         else:
             if _VERBOSE:
                 sys.stdout.write("No new sequences found.\n")
@@ -2481,6 +2478,46 @@ class PhyscraperScrape(object):
         cmd1 = "makeblastdb -in {}_db -dbtype nucl".format("local_unpubl_seq")
         os.system(cmd1)
 
+    # def make_otu_dict_entry_unpubl(self, key):
+    #     """Adds the local unpublished data to the otu_dict.
+    #
+    #     Information are retrieved from the additional json file/self.unpubl_otu_json.
+    #     I make up accession numbers, which might not be necessary
+    #
+    #     :param key: unique identifier of the unpublished seq
+    #     :return: generates self.data.gb_dict entry for key
+    #     """
+    #     debug("make_otu_dict_entry_unpubl")
+    #     # debug(self.data.gb_dict.keys())
+    #     # debug(key)
+    #     gb_counter = 1
+    #     if key not in self.data.gb_dict.keys():
+    #         # debug("key is new")
+    #         # numbers starting with 0000 are unpublished data
+    #         self.data.gb_dict[key] = {'accession': "000000{}".format(gb_counter),
+    #                                   'title': "unpublished", 'localID': key[7:]}
+    #         gb_counter += 1
+    #         # self.data.otu_dict[key] = {}
+    #         # self.data.otu_dict[key]['^ncbi:gi'] = key
+    #         # self.data.otu_dict[key]['^ncbi:accession'] = self.data.gb_dict[key]['accession']
+    #         # self.data.otu_dict[key]['^user:TaxonName'] = self.data.gb_dict[key]['localID']
+    #         # self.data.otu_dict[key]['^ncbi:title'] = self.data.gb_dict[key]['title']
+    #         # local_id = self.data.gb_dict[key]['localID']
+    #         # key2 = "otu{}".format(local_id)
+    #         # self.data.otu_dict[key]['^ot:ottTaxonName'] = self.unpubl_otu_json[key2]['^ot:ottTaxonName']
+    #         # self.data.otu_dict[key]['^ncbi:taxon'] = self.unpubl_otu_json[key2]['^ncbi:taxon']
+    #         # self.data.otu_dict[key]['^ot:ottId'] = self.unpubl_otu_json[key2]['^ot:ottId']
+    #         # self.data.otu_dict[key]['^physcraper:status'] = "local seq"
+    #         # self.data.otu_dict[key]['^physcraper:last_blasted'] = "1800/01/01"
+    #         # self.ids.get_rank_info(taxon_name=self.data.otu_dict[key]['^ot:ottTaxonName'])
+    #     else:
+    #         # debug("add new k,v - pairs")
+    #         # debug(self.data.gb_dict[key])
+    #         self.data.gb_dict[key].update([('accession', "000000{}".format(gb_counter)),
+    #                                        ('title', "unpublished"), ('localID', key[7:])])
+
+
+###############################
 
 class FilterBlast(PhyscraperScrape):
     """Takes the Physcraper Superclass and filters the ncbi blast results to only include a subset of the sequences.
@@ -2791,9 +2828,13 @@ class FilterBlast(PhyscraperScrape):
         :return: name of the blast file
         """
         debug("loop_for_write_blast_files")
+        # debug("length of sp_d key")
+        # nametoreturn = self.get_name_for_blastfiles(key)
         nametoreturn = key
         debug(key)
+        # debug([key, nametoreturn])
         for otu_id in self.sp_d[key]:
+            # this if should not be necessary, I leave it in for now
             if '^physcraper:status' in otu_id and otu_id['^physcraper:status'].split(' ')[0] not in self.seq_filter:
                 if otu_id['^physcraper:last_blasted'] != '1800/01/01':  # old seq
                     tax_name = self.ids.find_name(sp_dict=otu_id)
@@ -2842,6 +2883,12 @@ class FilterBlast(PhyscraperScrape):
         debug("count_num_seq")
         seq_present = 0
         in_data = 0
+        # if tax_id in self.sp_seq_d.keys():
+        #     for sp_keys in self.sp_seq_d[tax_id].keys():   # unique ID's: otu_label/GB id
+        #         print(sp_keys)
+        #         if len(sp_keys.split('.')) == 1:
+        #             seq_present += 1
+        # this determines if a taxonomic name / otu is already present in the aln and how many new seqs were found
         new_taxon = True
         query_count = 0
         for item in self.sp_d[tax_id]:
@@ -2891,6 +2938,15 @@ class FilterBlast(PhyscraperScrape):
                             if seq_present == 0 and new_taxon is True and query_count >= 1:  # if new taxon
                                 debug("new taxon")
                                 blast_seq_id = self.sp_seq_d[tax_id].keys()[0]
+                                # debug(blast_seq_id)
+                                # if self.downtorank is not None:
+                                #     str_db = tax_id
+                                # else:
+                                #     if type(blast_seq_id) == len(blast_seq_id.split(".")) >= 2:
+                                #         str_db = str(tax_id)
+                                #     else:
+                                #         str_db = str(blast_seq_id)
+                                # debug([tax_id, blast_seq_id])
                                 seq = self.sp_seq_d[tax_id][blast_seq_id]
                                 local_blast.write_filterblast_files(self.workdir, blast_seq_id, seq, fn=tax_id)  # blast guy
                                 blast_db = self.sp_seq_d[tax_id].keys()[1:]

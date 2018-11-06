@@ -17,7 +17,6 @@ def test_remove_taxa_aln_tre():
     data_obj.workdir = absworkdir
     ids = IdDicts(conf, workdir=data_obj.workdir)
     ids.acc_ncbi_dict = pickle.load(open("tests/data/precooked/tiny_acc_map.p", "rb"))
-
     filteredScrape =  FilterBlast(data_obj, ids)
 
     len_aln_before = len(filteredScrape.data.aln.as_string('phylip'))

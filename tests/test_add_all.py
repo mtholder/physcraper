@@ -25,6 +25,7 @@ def test_add_all():
     filteredScrape.sp_dict(downtorank)
     filteredScrape.make_sp_seq_dict()
     filteredScrape.seq_filter = ['deleted', 'subsequence,', 'not', "removed", "deleted,"]
+
     for key in filteredScrape.sp_d:
         if len(filteredScrape.sp_d[key]) <= treshold:
             filteredScrape.add_all(key)
