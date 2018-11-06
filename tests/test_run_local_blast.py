@@ -39,4 +39,4 @@ def test_run_filter_blast():
 
     if os.path.exists(blast_out):
         open(blast_out)
-  
+ 

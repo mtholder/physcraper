@@ -57,3 +57,4 @@ def test_write_blast():
         with open(blast_file_db) as f:
             first_line = f.readline()
             assert len(first_line.strip()) != 0
+            
