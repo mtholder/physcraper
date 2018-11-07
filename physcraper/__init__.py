@@ -190,49 +190,52 @@ class ConfigObj(object):
         If not files will be downloaded.
         """
         if self.blast_loc == 'local':
-            if not os.path.isfile("{}/nt.01.nhr".format(self.blastdb)):
-                print("Do you want to download the blast nt databases from ncbi? Note: "
-                      "This is a US government website! You agree to their terms")
-                x = get_raw_input()
-                if x == "yes":
-                    os.system("wget 'ftp://ftp.ncbi.nlm.nih.gov/blast/db/nt.*'" 
-                              "{}/".format(self.blastdb))
-                    os.system("wget 'ftp://ftp.ncbi.nlm.nih.gov/blast/db/taxdb.tar.gz'" 
-                              "{}/".format(self.blastdb))
-                    cwd = os.getcwd()
-                    os.chdir(self.blastdb)
-                    os.system("update_blastdb nt")
-                    os.system("cat *.tar.gz | tar -xvzf - -i")
-                    os.system("gunzip -cd taxdb.tar.gz | (tar xvf - )")
-                    os.chdir(cwd)
-                elif x == "no":
-                    print("You did not agree to download data from ncbi. Program will default to blast web-queries.")
-                    print("This is slow and crashes regularly!")
-                    self.blast_loc = 'remote'
-                else:
-                    print("You did not type yes or no!")
-            else:
-                download_date = os.path.getmtime("{}/nt.01.nhr".format(self.blastdb))
-                download_date = datetime.datetime.fromtimestamp(download_date)
-                today = datetime.datetime.now()
-                time_passed = (today - download_date).days
-                if time_passed >= 90:
-                    print("Your databases might not be uptodate anymore. You downloaded them {} days ago. "
-                          "Do you want to update the blast databases from ncbi? Note: This is a US government website! "
-                          "You agree to their terms".format(time_passed))
+            # nest line of codes exists to have interactive mode enabled while testing
+            # this allows to not actually have a local nsbi database downloaded
+            if not os.path.isfile("{}/empty_local_db_for_testing.nhr".format(self.blastdb)):
+                if not os.path.isfile("{}/nt.01.nhr".format(self.blastdb)):
+                    print("Do you want to download the blast nt databases from ncbi? Note: "
+                          "This is a US government website! You agree to their terms")
                     x = get_raw_input()
                     if x == "yes":
+                        os.system("wget 'ftp://ftp.ncbi.nlm.nih.gov/blast/db/nt.*'" 
+                                  "{}/".format(self.blastdb))
+                        os.system("wget 'ftp://ftp.ncbi.nlm.nih.gov/blast/db/taxdb.tar.gz'" 
+                                  "{}/".format(self.blastdb))
                         cwd = os.getcwd()
                         os.chdir(self.blastdb)
-                        os.system('update_blastdb nt')
-                        os.system('cat *.tar.gz | tar -xvzf - -i')
-                        os.system("update_blastdb taxdb")
+                        os.system("update_blastdb nt")
+                        os.system("cat *.tar.gz | tar -xvzf - -i")
                         os.system("gunzip -cd taxdb.tar.gz | (tar xvf - )")
                         os.chdir(cwd)
                     elif x == "no":
-                        print("You did not agree to update data from ncbi. Old database files will be used.")
+                        print("You did not agree to download data from ncbi. Program will default to blast web-queries.")
+                        print("This is slow and crashes regularly!")
+                        self.blast_loc = 'remote'
                     else:
-                        print("You did not type 'yes' or 'no'!")
+                        print("You did not type yes or no!")
+                else:
+                    download_date = os.path.getmtime("{}/nt.01.nhr".format(self.blastdb))
+                    download_date = datetime.datetime.fromtimestamp(download_date)
+                    today = datetime.datetime.now()
+                    time_passed = (today - download_date).days
+                    if time_passed >= 90:
+                        print("Your databases might not be uptodate anymore. You downloaded them {} days ago. "
+                              "Do you want to update the blast databases from ncbi? Note: This is a US government website! "
+                              "You agree to their terms".format(time_passed))
+                        x = get_raw_input()
+                        if x == "yes":
+                            cwd = os.getcwd()
+                            os.chdir(self.blastdb)
+                            os.system('update_blastdb nt')
+                            os.system('cat *.tar.gz | tar -xvzf - -i')
+                            os.system("update_blastdb taxdb")
+                            os.system("gunzip -cd taxdb.tar.gz | (tar xvf - )")
+                            os.chdir(cwd)
+                        elif x == "no":
+                            print("You did not agree to update data from ncbi. Old database files will be used.")
+                        else:
+                            print("You did not type 'yes' or 'no'!")
 
     def _download_ncbi_parser(self):
         """Check if files are present and if they are up to date.
