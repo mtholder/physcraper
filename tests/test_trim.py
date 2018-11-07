@@ -44,9 +44,11 @@ data_obj = generate_ATT_from_files(seqaln=seqaln,
 for tax, seq in data_obj.aln.items():
 	len_start = len(seq)
 	next
-data_obj.prune_short()
+print(len_start)
+data_obj.trim()
 for tax, seq in data_obj.aln.items():
 	len_end = len(seq)
+print(len_end)
 
 assert len_start != len_end
 

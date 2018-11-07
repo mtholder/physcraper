@@ -2,8 +2,9 @@ from dendropy import Tree, \
       DnaCharacterMatrix, \
       DataSet, \
       datamodel
-from physcraper import wrappers, generate_ATT_from_files, AlignTreeTax
-#
+from physcraper import wrappers, generate_ATT_from_files, AlignTreeTax, OtuJsonDict
+import os
+import json
 
 
 #------------------------
@@ -17,6 +18,18 @@ workdir="tests/output/owndata"
 configfi = "example.config"
 id_to_spn = r"tests/data/tiny_test_example/test_nicespl.csv"
 otu_jsonfi = "{}/otu_dict.json".format(workdir)
+
+
+print(workdir)
+if os.path.exists(otu_jsonfi):
+    print("load json")
+    otu_json = json.load(open(otu_jsonfi))
+else:
+    otu_json = OtuJsonDict(id_to_spn, configfi)
+    if not os.path.exists(workdir):
+        os.mkdir(workdir)
+    json.dump(otu_json, open(otu_jsonfi, "w"))
+
 
 
 data_obj = generate_ATT_from_files(seqaln=seqalnmiss, 

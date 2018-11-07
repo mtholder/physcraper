@@ -41,13 +41,17 @@ def run_filter_blast(workdir, blast_seq, blast_db, output=None):
     In a later step (select_seq_by_local_blast) sequences will be selected based on the blast results generated here.
 
     # Note: has test, runs -> test_run_local_blast.py
+
+    :param blast_seq: Name of the file which contains the query seq
+    :param blast_db:  Name of the file which contains the seq that shall be blasted against - Note, file needs to be in fasta format 
+    :param output: Optional outpu filename
     """
 
     debug("run_filter_blast")
     general_wd = os.getcwd()
     os.chdir(os.path.join(workdir, "blast"))
     out_fn = "{}_tobeblasted".format(str(blast_seq))
-    cmd1 = "makeblastdb -in {}_db -dbtype nucl".format(blast_seq)
+    cmd1 = "makeblastdb -in {}_db -dbtype nucl".format(blast_db)
     os.system(cmd1)
     if output is None:
         cmd2 = "blastn -query {} -db {}_db -out output_{}.xml -outfmt 5".format(out_fn, blast_db, out_fn)

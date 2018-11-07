@@ -18,4 +18,8 @@ python tests/test_read_local_blast.py
 python tests/tests_write_blast.py
 python tests/test_remove_id_seq.py
 python tests/test_addLocal.py
+python tests/test_reconcile.py
+python tests/test_trim.py
+python tests/test_unmapped_taxa.py
 python tests/test_blacklist.py
+
