@@ -337,7 +337,7 @@ def add_unpubl_to_backbone(seqaln,
         sys.stdout.write("setting up Data Object\n")
         sys.stdout.flush()
         # read the config file into a configuration object
-        conf = ConfigObj(configfi, interactive=True)
+        conf = ConfigObj(configfi, interactive=False)
 
         # Generate an linked Alignment-Tree-Taxa object
         data_obj = generate_ATT_from_files(seqaln=seqaln, 
@@ -362,12 +362,13 @@ def add_unpubl_to_backbone(seqaln,
         ids = IdDicts(conf, workdir=workdir)
 
         # Now combine the data, the ids, and the configuration into a single physcraper scrape object
-        filteredScrape = FilterBlast(data_obj, ids)
-       
+        filteredScrape = FilterBlast(data_obj, ids)    
         filteredScrape.add_setting_to_self(downtorank, threshold)
         filteredScrape.blacklist = blacklist
         if add_unpubl_seq is not None:
             filteredScrape.unpublished = True
+            filteredScrape.data.write_files(treepath="backbone.tre", alnpath="backbone.fas")
+
         if filteredScrape.unpublished is True:  # use unpublished data
             sys.stdout.write("Blasting against local unpublished data")
             filteredScrape.unpublished = True

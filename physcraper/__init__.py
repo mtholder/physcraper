@@ -39,8 +39,9 @@ if sys.version_info < (3,):
 else:
     from urllib.error import HTTPError
 
-_DEBUG = 0
-_DEBUG_MK = 0
+
+_DEBUG = 1
+_DEBUG_MK = 1
 _deep_debug = 0
 
 _VERBOSE = 0
@@ -282,8 +283,7 @@ class ConfigObj(object):
                 download_date = os.path.getmtime(self.ncbi_parser_nodes_fn)
                 download_date = datetime.datetime.fromtimestamp(download_date)
                 today = datetime.datetime.now()
-                time_passed = (today - download_date).days    
-                # debug([download_date, today, time_passed])
+                time_passed = (today - download_date).days
                 if time_passed >= 90:
                     print("Do you want to update taxonomy databases from ncbi? Note: This is a US government website! "
                           "You agree to their terms")
@@ -856,6 +856,15 @@ class AlignTreeTax(object):
             tax_name = self.gb_dict[gb_id]["^ot:ottTaxonName"]
             ncbi_id = self.gb_dict[gb_id]["^ncbi:taxon"]
             ott_id = self.gb_dict[gb_id]["^ot:ottId"]
+            if tax_name is None:
+                tax_name = self.gb_dict[gb_id][u'^user:TaxonName']
+            if ncbi_id is None:
+                debug(tax_name.split(" ")[0])
+                tax_lin_name = tax_name.split(" ")[0]
+                tax_lin_name = tax_lin_name.split("_")[0]
+                print(tax_lin_name)
+                ncbi_id = ids_obj.ncbi_parser.get_id_from_name(tax_lin_name)
+                #ncbi_id = 00000
         elif len(gb_id.split(".")) >= 2:  # used to figure out if gb_id is from Genbank
             if gb_id in self.gb_dict.keys() and "staxids" in self.gb_dict[gb_id].keys():
                 tax_name = self.gb_dict[gb_id]["sscinames"]
@@ -1103,6 +1112,7 @@ def get_ott_ids_from_otu_dict(otu_dict):  # TODO put into data obj?
         except KeyError:
             pass
 
+
 #####################################
 
 class IdDicts(object):
@@ -1317,6 +1327,10 @@ class IdDicts(object):
                 gb_id = acc
             elif "^ncbi:accession" in sp_dict:
                 gb_id = sp_dict["^ncbi:accession"]
+            # elif '^ncbi:acc' in sp_dict:
+            #     gb_id = sp_dict['^ncbi:acc']
+            #     if gb_id is None:
+            #         gb_id = sp_dict['^ncbi:accession']
             else:
                 sys.stderr.write("There is no name supplied and no acc available. This should not happen! Check name!")
             if gb_id.split(".") == 1:
@@ -1798,14 +1812,16 @@ class PhyscraperScrape(object):
             for alignment in blast_record.alignments:
                 for hsp in alignment.hsps:
                     if float(hsp.expect) < float(self.config.e_value_thresh):
+                        # debug(alignment.title.split("|"))
+                        debug(alignment.title.split("|")[-1].split(" ")[-1])
                         local_id = alignment.title.split("|")[-1].split(" ")[-1]
                         if local_id not in self.data.gb_dict:  # skip ones we already have
                             unpbl_local_id = "unpubl_{}".format(local_id)
                             self.new_seqs[unpbl_local_id] = hsp.sbjct
                             self.data.gb_dict[unpbl_local_id] = {'title': "unpublished", 'localID': local_id}
-                            debug(self.data.unpubl_otu_json)
+                            # debug(self.data.unpubl_otu_json)
                             self.data.gb_dict[unpbl_local_id].update(
-                                self.data.unpubl_otu_json['otu{}'.format(local_id)])
+                                self.data.unpubl_otu_json['otu{}'.format(local_id.replace("_", "").replace("-",""))])
                             gb_counter += 1
 
     def read_webbased_blast_query(self, fn_path):
@@ -2065,12 +2081,25 @@ class PhyscraperScrape(object):
                         else:
                             debug(self.mrca_ncbi)
                             debug("think about something to do!")
+                        debug(self.mrca_ncbi)
+
                         rank_mrca_ncbi = self.ids.ncbi_parser.get_rank(mrca_ncbi)
                         # get rank to delimit seq to ingroup_mrca
                         # get name first
                         if gb_id[:6] == "unpubl":
-                            tax_name = self.data.gb_dict[gb_id]["^ot:ottTaxonName"]
-                            ncbi_id = self.data.gb_dict[gb_id]["^ncbi:taxon"]
+                            debug("unpubl data")
+                            debug(self.data.gb_dict[gb_id])
+                            tax_name = self.data.gb_dict[gb_id][u"^ot:ottTaxonName"]
+                            ncbi_id = self.data.gb_dict[gb_id][u"^ncbi:taxon"]
+                            if tax_name is None:
+                                tax_name = self.data.gb_dict[gb_id][u'^user:TaxonName']
+                            if ncbi_id is None:
+                                debug(tax_name.split(" ")[0])
+                                tax_lin_name = tax_name.split(" ")[0]
+                                tax_lin_name = tax_lin_name.split("_")[0]
+                                print(tax_lin_name)
+                                ncbi_id = self.ids.ncbi_parser.get_id_from_name(tax_lin_name)
+                                #ncbi_id = 00000
                         elif len(gb_id.split(".")) >= 2:
                             if gb_id in self.data.gb_dict.keys() and 'staxids' in self.data.gb_dict[gb_id].keys():
                                 tax_name = self.data.gb_dict[gb_id]['sscinames']
@@ -2211,47 +2240,65 @@ class PhyscraperScrape(object):
     def place_query_seqs(self):
         """runs raxml on the tree, and the combined alignment including the new query seqs.
         Just for placement, to use as starting tree."""
-
-        if self.backbone is not True:
-            if os.path.exists("RAxML_labelledTree.PLACE"):
-                os.rename("RAxML_labelledTree.PLACE", "RAxML_labelledTreePLACE.tmp")
-            if _VERBOSE:
-                sys.stdout.write("placing query sequences \n")
-            cwd = (os.getcwd())
-            os.chdir(self.workdir)
-            try:
-                subprocess.call(["raxmlHPC", "-m", "GTRCAT",
-                                 "-f", "v",
-                                 "-s", "papara_alignment.extended",
-                                 "-t", "random_resolve.tre",
-                                 "-n", "PLACE"])
-                placetre = Tree.get(path="RAxML_labelledTree.PLACE",
-                                    schema="newick",
-                                    preserve_underscores=True)
-            except OSError as e:
-                if e.errno == os.errno.ENOENT:
-                    sys.stderr.write("failed running raxmlHPC. Is it installed?")
-                    sys.exit(-6)
-                # handle file not
-                # handle file not found error.
-                else:
-                    # Something else went wrong while trying to run `wget`
-                    raise
-            placetre.resolve_polytomies()
-            for taxon in placetre.taxon_namespace:
-                if taxon.label.startswith("QUERY"):
-                    taxon.label = taxon.label.replace("QUERY___", "")
-            placetre.write(path="place_resolve.tre", schema="newick", unquoted_underscores=True)
-            os.chdir(cwd)
-            self._query_seqs_placed = 1
-        else:
+        if self.backbone is True:
             cwd = os.getcwd()
             os.chdir(self.workdir)
-            backbonetre = self.data.orig_newick
+            # backbonetre = self.data.orig_newick
+
+            backbonetre = Tree.get(path="{}/backbone.tre".format(self.workdir),
+                                schema="newick",
+                                preserve_underscores=True)
+
             backbonetre.resolve_polytomies()
-            backbonetre.write(path="backbone.tre", schema="newick", unquoted_underscores=True)
+            backbonetre.write(path="random_resolve.tre", schema="newick", unquoted_underscores=True)
             os.chdir(cwd)
-            self._query_seqs_placed = 1
+
+        # if self.backbone is not True:
+        if os.path.exists("RAxML_labelledTree.PLACE"):
+            os.rename("RAxML_labelledTree.PLACE", "RAxML_labelledTreePLACE.tmp")
+        if _VERBOSE:
+            sys.stdout.write("placing query sequences \n")
+        cwd = (os.getcwd())
+        os.chdir(self.workdir)
+        try:
+            subprocess.call(["raxmlHPC", "-m", "GTRCAT",
+                             "-f", "v",
+                             "-s", "papara_alignment.extended",
+                             "-t", "random_resolve.tre",
+                             "-n", "PLACE"])
+            placetre = Tree.get(path="RAxML_labelledTree.PLACE",
+                                schema="newick",
+                                preserve_underscores=True)
+        except OSError as e:
+            if e.errno == os.errno.ENOENT:
+                sys.stderr.write("failed running raxmlHPC. Is it installed?")
+                sys.exit(-6)
+            # handle file not
+            # handle file not found error.
+            else:
+                # Something else went wrong while trying to run `wget`
+                raise
+        placetre.resolve_polytomies()
+        for taxon in placetre.taxon_namespace:
+            if taxon.label.startswith("QUERY"):
+                taxon.label = taxon.label.replace("QUERY___", "")
+        placetre.write(path="place_resolve.tre", schema="newick", unquoted_underscores=True)
+        os.chdir(cwd)
+        self._query_seqs_placed = 1
+        # else:
+        #     cwd = os.getcwd()
+        #     os.chdir(self.workdir)
+        #     # backbonetre = self.data.orig_newick
+
+        #     backbonetre = Tree.get(path="{}/backbone.tre".format(self.workdir),
+        #                         schema="newick",
+        #                         preserve_underscores=True)
+
+        #     backbonetre.resolve_polytomies()
+        #     backbonetre.write(path="backbone.tre", schema="newick", unquoted_underscores=True)
+        #     os.chdir(cwd)
+
+        #     self._query_seqs_placed = 1
 
     def est_full_tree(self):
         """Full raxml run from the placement tree as starting tree"""
@@ -3041,11 +3088,9 @@ class FilterBlast(PhyscraperScrape):
                 if '^ncbi:accession' in self.data.otu_dict[key]:
                     if self.data.otu_dict[key]['^ncbi:accession'] == gb_id:
                         self.data.otu_dict[key]['^physcraper:last_blasted'] = "1900/01/01"
-                        
                         print(self.data.otu_dict[key]['^physcraper:status'])
-                        if self.data.otu_dict[key]['^physcraper:status'] == "query" or self.data.otu_dict[key]['^physcraper:status'].split(" ")[0] == 'new' :
+                        if self.data.otu_dict[key]['^physcraper:status'] == "query":
                             self.data.otu_dict[key]['^physcraper:status'] = 'not added, there are enough seq per sp in tre'
-        
         for gb_id in keylist:
             if gb_id.split(".") == 1:
                 debug(gb_id)

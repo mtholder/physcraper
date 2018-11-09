@@ -145,8 +145,28 @@ class Parser:
         """
         if nodes is None:
             self.initialize()
+        debug(nodes[nodes["tax_id"] == tax_id])
         rank = nodes[nodes["tax_id"] == tax_id]["rank"].values[0]
         return rank
+
+    def find_higher_id(self, tax_id, higher_id):
+        """Find if certain taxon is lower rank than another one"""
+        if nodes is None:
+            self.initialize()
+
+        if type(tax_id) != int():
+            sys.stdout.write("WARNING: tax_id {} is no integer. Will convert value to int".format(tax_id))
+            tax_id = int(tax_id)
+        # assert type(tax_id) is int()
+        if tax_id == higher_id:
+            return tax_id
+        else:
+            parent_id = int(nodes[nodes["tax_id"] == tax_id]["parent_tax_id"].values[0])
+            if parent_id == higher_id:
+                return parent_id
+            else:
+                return self.find_higher_id(parent_id, higher_id)
+
 
     def get_downtorank_id(self, tax_id, downtorank="species"):
         """ Recursive function to find the parent id of a taxon as defined by downtorank.
