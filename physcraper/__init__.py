@@ -44,7 +44,7 @@ _DEBUG = 1
 _DEBUG_MK = 1
 _deep_debug = 0
 
-_VERBOSE = 0
+_VERBOSE = 1
 
 
 def debug(msg):
@@ -797,6 +797,7 @@ class AlignTreeTax(object):
                 return
         start = 0
         stop = seqlen
+        print("stop: {}".format(seqlen))
         cutoff = len(self.aln) * taxon_missingness
         for i in range(seqlen):
             counts = {"?": 0, "-": 0}
@@ -834,6 +835,14 @@ class AlignTreeTax(object):
         if _VERBOSE:
             sys.stdout.write("trimmed alignment ends to < {} missing taxa, "
                              "start {}, stop {}\n".format(taxon_missingness, start, stop))
+        # self.write_files(treepath="trim.tre", alnpath="trim.fas")
+        # for taxon in self.aln:
+        #     print(len(self.aln[taxon]))
+        # x = self.aln.as_string(schema="fasta")
+
+        # fi = open("{}/{}".format(self.workdir, 'x_trim.tre'), "w")
+        # fi.write(x)
+        # print(some)
         return
 
     def add_otu(self, gb_id, ids_obj):
