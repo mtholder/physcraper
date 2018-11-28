@@ -377,7 +377,6 @@ def add_unpubl_to_backbone(seqaln,
 
             filteredScrape.write_unpubl_blastdb(add_unpubl_seq)
             filteredScrape.run_blast_wrapper(delay=14)
-
             print("add unpubl otu json")
             filteredScrape.data.unpubl_otu_json = id_to_spn_addseq_json
             print(filteredScrape.data.unpubl_otu_json)
@@ -517,6 +516,7 @@ def filter_data_run(seqaln,
             filteredScrape.dump()
             sys.stdout.write("Filter the sequences\n")
             if threshold is not None:
+                
                 filteredScrape.sp_dict(downtorank)
                 filteredScrape.make_sp_seq_dict()
                 filteredScrape.how_many_sp_to_keep(threshold=threshold, selectby=selectby)

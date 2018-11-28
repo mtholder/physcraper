@@ -6,7 +6,6 @@ from dendropy import Tree, \
       datamodel
 from physcraper import wrappers, generate_ATT_from_files, AlignTreeTax, OtuJsonDict
 
-
 def test_reconcile():
     #------------------------
     seqaln= "tests/data/tiny_test_example/test.fas"
