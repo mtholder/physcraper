@@ -18,26 +18,9 @@ else:
     from urllib.error import HTTPError
 
 
-if sys.version_info < (3, ):
-    from urllib2 import HTTPError
-else:
-    from urllib.error import HTTPError
-
-
-if sys.version_info < (3, ):
-    from urllib2 import HTTPError
-else:
-    from urllib.error import HTTPError
-
-
-if sys.version_info < (3, ):
-    from urllib2 import HTTPError
-else:
-    from urllib.error import HTTPError
-
 """Code used to concatenate different single PhyScraper runs into a concatenated one.
 """
-debug("Current concat Version number: 11022018.0")
+physcraper.debug("Current concat Version number: 11022018.0")
 
 # def remove_leaf(tre, leaf):
 #     """ Removes a taxon from tre.
