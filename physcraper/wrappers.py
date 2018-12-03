@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from __future__ import absolute_import
 import pickle
 import sys
 import os
@@ -385,11 +384,36 @@ def add_unpubl_to_backbone(seqaln,
             filteredScrape.read_blast_wrapper()
             filteredScrape.remove_identical_seqs()
             filteredScrape.generate_streamed_alignment()
+
+            #######################
             filteredScrape.unpublished = False
             filteredScrape.repeat = 1
+           
         else:
+
+             #####################3
+            # run newly added local seq against local db
+            sys.stdout.write("BLASTing local seq against Genbank\n")
+
+            filteredScrape.unpublished = True
+            filteredScrape.backbone = False
+
+            filteredScrape.write_unpubl_blastdb(add_unpubl_seq)
+            filteredScrape.run_blast_wrapper(delay=14)
+
+            print("add unpubl otu json")
+            filteredScrape.data.unpubl_otu_json = id_to_spn_addseq_json
+            print(filteredScrape.data.unpubl_otu_json)
+
+            filteredScrape.read_blast_wrapper()
+            filteredScrape.remove_identical_seqs()
+            filteredScrape.generate_streamed_alignment()
+            #######################
+            filteredScrape.unpublished = False
+            filteredScrape.repeat = 1
+
             # run the analysis
-            sys.stdout.write("BLASTing input sequences\n")
+            sys.stdout.write("BLASTing local seq against Genbank\n")
             if shared_blast_folder:
                 filteredScrape.blast_subdir = shared_blast_folder
             else:
@@ -408,28 +432,50 @@ def add_unpubl_to_backbone(seqaln,
             filteredScrape.generate_streamed_alignment()
             filteredScrape.dump()
             filteredScrape.repeat = 1
-        while filteredScrape.repeat == 1:
-            filteredScrape.data.write_labelled(label='^ot:ottTaxonName', add_gb_id=True)
-            filteredScrape.data.write_otus("otu_info", schema='table')
-            sys.stdout.write("BLASTing input sequences\n")
-            if shared_blast_folder:
-                filteredScrape.blast_subdir = shared_blast_folder
-            else:
-                shared_blast_folder = None
-            filteredScrape.run_blast_wrapper(delay=14)
-            filteredScrape.read_blast_wrapper(blast_dir=shared_blast_folder)
-            filteredScrape.remove_identical_seqs()
-            sys.stdout.write("Filter the sequences\n")
-            if threshold is not None:
-                filteredScrape.sp_dict(downtorank)
-                filteredScrape.make_sp_seq_dict()
-                filteredScrape.how_many_sp_to_keep(threshold=threshold, selectby=selectby)
-                filteredScrape.replace_new_seq()
-            filteredScrape.data.prune_short(0.5)
-            sys.stdout.write("calculate the phylogeny\n")
-            filteredScrape.generate_streamed_alignment()
-            filteredScrape.dump()
-            filteredScrape.repeat = 0
+    while filteredScrape.repeat == 1:
+        # blast new Genbank seq against local
+        sys.stdout.write("BLASTing Genbank seq against local\n")
+
+        filteredScrape.unpublished = True
+        filteredScrape.backbone = False
+
+        filteredScrape.write_unpubl_blastdb(add_unpubl_seq)
+        filteredScrape.run_blast_wrapper(delay=14)
+
+        print("add unpubl otu json")
+        filteredScrape.data.unpubl_otu_json = id_to_spn_addseq_json
+        print(filteredScrape.data.unpubl_otu_json)
+
+        filteredScrape.read_blast_wrapper()
+        filteredScrape.remove_identical_seqs()
+        filteredScrape.generate_streamed_alignment()
+        filteredScrape.unpublished = False
+
+        #####
+        # blast new Genban kseq against Genbank
+
+        filteredScrape.data.write_labelled(label='^ot:ottTaxonName', add_gb_id=True)
+        filteredScrape.data.write_otus("otu_info", schema='table')
+        sys.stdout.write("BLASTing input sequences\n")
+        if shared_blast_folder:
+            filteredScrape.blast_subdir = shared_blast_folder
+        else:
+            shared_blast_folder = None
+        filteredScrape.run_blast_wrapper(delay=14)
+        filteredScrape.read_blast_wrapper(blast_dir=shared_blast_folder)
+        filteredScrape.remove_identical_seqs()
+        sys.stdout.write("Filter the sequences\n")
+        if threshold is not None:
+            filteredScrape.sp_dict(downtorank)
+            filteredScrape.make_sp_seq_dict()
+            filteredScrape.how_many_sp_to_keep(threshold=threshold, selectby=selectby)
+            filteredScrape.replace_new_seq()
+        filteredScrape.data.prune_short(0.5)
+        sys.stdout.write("calculate the phylogeny\n")
+        filteredScrape.generate_streamed_alignment()
+        filteredScrape.dump()
+        filteredScrape.repeat = 0
+
     filteredScrape.write_otu_info()
     return filteredScrape
 
@@ -503,6 +549,7 @@ def filter_data_run(seqaln,
             print("add unpubl otu json")
             filteredScrape.data.unpubl_otu_json = id_to_spn_addseq_json
             print(filteredScrape.data.unpubl_otu_json)
+
             filteredScrape.read_blast_wrapper()
             filteredScrape.remove_identical_seqs()
             filteredScrape.generate_streamed_alignment()
@@ -520,6 +567,7 @@ def filter_data_run(seqaln,
             filteredScrape.dump()
             sys.stdout.write("Filter the sequences\n")
             if threshold is not None:
+
                 filteredScrape.sp_dict(downtorank)
                 filteredScrape.make_sp_seq_dict()
                 filteredScrape.how_many_sp_to_keep(threshold=threshold, selectby=selectby)

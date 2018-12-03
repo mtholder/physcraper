@@ -157,6 +157,8 @@ class Parser:
         if type(tax_id) != int():
             sys.stdout.write("WARNING: tax_id {} is no integer. Will convert value to int.\n".format(tax_id))
             tax_id = int(tax_id)
+        if tax_id == 1:
+            return tax_id
         # assert type(tax_id) is int()
         if tax_id == higher_id:
             return tax_id
@@ -182,7 +184,7 @@ class Parser:
             )
             tax_id = int(tax_id)
         debug(downtorank)
-        # following statement is to get id of taxa if taxa is higher ranked than specified
+        # following if statement is to get id of taxa if taxa is higher ranked than specified
         if nodes[nodes["tax_id"] == tax_id]["rank"].values[0] != "species":
             if downtorank == "species":
                 if (
@@ -206,7 +208,7 @@ class Parser:
         """
         if names is None:
             self.initialize()
-        if tax_id == 0:
+        if tax_id == 1:
             tax_name = "unidentified"
         else:
             tax_name = names[names["tax_id"] == tax_id]["name_txt"]
@@ -234,7 +236,7 @@ class Parser:
                 tax_id = names[names["name_txt"] == tax_name]["tax_id"].values[0]
             else:
                 sys.stdout.write(
-                    "Are you sure, its an accepted name and not a synonym?I look in the synonym table now"
+                    "Are you sure its an accepted name and not a synonym: {}? I look in the synonym table now. \n".format(tax_name)
                 )
                 tax_id = self.get_id_from_synonym(tax_name)
         tax_id = int(tax_id)
@@ -255,7 +257,15 @@ class Parser:
                     tax_name.split(" ")[1],
                     tax_name.split(" ")[2],
                 )
-                tax_id = names[names["name_txt"] == tax_name]["tax_id"].values[0]
+		try:
+                    tax_id = names[names["name_txt"] == tax_name]["tax_id"].values[0]
+		except:
+		    tax_id = 1
+		    print("something else is going wrong: {}".format(tax_name))
+		    sys.stdout.write("{} is not a name known by ncbi, tax_id set to 1.\n".format(tax_name))
+		    return tax_id
             else:
                 print("something else is going wrong: {}".format(tax_name))
+		sys.stdout.write("{} is not a name known by ncbi, tax_id set to 1.\n".format(tax_name))
+		tax_id = 1
         return tax_id
