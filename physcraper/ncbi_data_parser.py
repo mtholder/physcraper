@@ -155,7 +155,7 @@ class Parser:
             self.initialize()
 
         if type(tax_id) != int():
-            sys.stdout.write("WARNING: tax_id {} is no integer. Will convert value to int".format(tax_id))
+            sys.stdout.write("WARNING: tax_id {} is no integer. Will convert value to int.\n".format(tax_id))
             tax_id = int(tax_id)
         # assert type(tax_id) is int()
         if tax_id == higher_id:
