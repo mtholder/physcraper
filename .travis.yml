@@ -2,6 +2,38 @@ language: python
 python:
   - "2.7"
 # command to install dependencies
+
+before_install:
+  - sudo apt-get update
+
+  ### install blast+
+  # this fails often with connection errors
+  - sudo apt-get install ncbi-blast+
+
+
+  #### install papara
+  - wget 'https://sco.h-its.org/exelixis/resource/download/software/papara_nt-2.5-static_x86_64.tar.gz'
+  - gunzip  -cd papara_nt-2.5-static_x86_64.tar.gz 
+  - export PATH="$PATH"
+  #- papara
+
+  ##### to use RAXML we need conda
+  - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+  - chmod +x miniconda.sh
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
+  - source activate test-environment
+  - conda install -c bioconda raxml
+  - python setup.py install
+
+  #### ete fails now, because of conda
+  - conda install -c etetoolkit ete2
+  - export PATH=~/anaconda_ete/bin:$PATH
+
+
 install:
   - pip install --quiet -r requirements.txt
   - pip install --quiet . 
