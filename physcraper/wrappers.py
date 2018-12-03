@@ -386,7 +386,7 @@ def add_unpubl_to_backbone(seqaln,
             filteredScrape.remove_identical_seqs()
             filteredScrape.generate_streamed_alignment()
             filteredScrape.unpublished = False
-        filteredScrape.repeat = 1
+            filteredScrape.repeat = 1
         else:
             # run the analysis
             sys.stdout.write("BLASTing input sequences\n")
@@ -407,7 +407,7 @@ def add_unpubl_to_backbone(seqaln,
             sys.stdout.write("Calculate the phylogeny\n")
             filteredScrape.generate_streamed_alignment()
             filteredScrape.dump()
-        filteredScrape.repeat = 0
+            filteredScrape.repeat = 1
         while filteredScrape.repeat == 1:
             filteredScrape.data.write_labelled(label='^ot:ottTaxonName', add_gb_id=True)
             filteredScrape.data.write_otus("otu_info", schema='table')
@@ -429,7 +429,7 @@ def add_unpubl_to_backbone(seqaln,
             sys.stdout.write("calculate the phylogeny\n")
             filteredScrape.generate_streamed_alignment()
             filteredScrape.dump()
-        filteredScrape.repeat = 0
+            filteredScrape.repeat = 0
     filteredScrape.write_otu_info()
     return filteredScrape
 

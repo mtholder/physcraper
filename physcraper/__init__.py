@@ -1960,7 +1960,6 @@ class PhyscraperScrape(object):  # TODO do I want to be able to instantiate this
                             # if len(self.acc_list_mrca) >= 1 and (gb_id not in self.acc_list_mrca):
                             #     pass
                             # else:
-                            if gb_id not in self.data.gb_dict:  # skip ones we already have
                                 # debug("add gb_id to new seqs")
                                 self.new_seqs[gb_id] = hsp.sbjct
                                 gi_id = alignment.title.split('|')[1]
