@@ -10,8 +10,7 @@ from copy import deepcopy
 from dendropy import Tree, DnaCharacterMatrix
 from Bio import Entrez
 
-from __init__ import debug
-
+import physcraper
 
 if sys.version_info < (3, ):
     from urllib2 import HTTPError
@@ -44,11 +43,8 @@ def remove_aln_tre_leaf(scrape):
     treed_taxa = set()
     for leaf in scrape.data.tre.leaf_nodes():
         treed_taxa.add(leaf.taxon)
-    # debug(treed_taxa)
     for leaf in scrape.data.tre.leaf_nodes():
         if leaf.taxon not in aln_ids:
-            # debug("leaf.taxon not present in aln_ids")
-            # debug(leaf.taxon)
             scrape.data.tre.prune_taxa([leaf])
             scrape.data.tre.prune_taxa_with_labels([leaf.taxon])
             scrape.data.tre.prune_taxa_with_labels([leaf])
@@ -170,8 +166,9 @@ class Concat(object):
         :param genename: string, name for locus provided by user
         :return: self.single_runs
         """
-        debug("load_single_genes: {}".format(genename))
-        scrape = pickle.load(open("{}/{}".format(workdir, pickle_fn), 'rb'))
+
+        physcraper.debug("load_single_genes: {}".format(genename))
+        scrape = pickle.load(open("{}/{}".format(workdir, pickle_fn), "rb"))
         scrape = remove_aln_tre_leaf(scrape)
         self.single_runs[genename] = deepcopy(scrape)
         return
@@ -181,7 +178,7 @@ class Concat(object):
 
         Is a wrapper function around make_concat_id_dict(). It produces the parameters needed for the function.
         """
-        debug("combine")
+        physcraper.debug("combine")
         self.num_of_genes = len(self.single_runs)
         concat_id_counter = 1
         for genename in self.single_runs:
@@ -219,24 +216,33 @@ class Concat(object):
                 self.sp_acc_comb[spn][genename] = {}
         else:
             # we should never get here....
-            debug("THERE IS A SERIOUS PROBLEM....")
+            physcraper.debug("THERE IS A SERIOUS PROBLEM....")
         assert spn is not None
         if concat_id not in self.sp_acc_comb[spn][genename]:
-            if '^ncbi:accession' in data:
-                unique_id = data['^ncbi:accession']
-            elif u'^ot:originalLabel' in data:
-                unique_id = data[u'^ot:originalLabel']
-            concat_dict = {"unique_id": unique_id, "seq": seq, "spn": spn, "original_PS_id": otu,
-                           "concat:status": "single run"}
+            if "^ncbi:accession" in data:
+                unique_id = data["^ncbi:accession"]
+            elif u"^ot:originalLabel" in data:
+                unique_id = data[u"^ot:originalLabel"]
+            concat_dict = {
+                "unique_id": unique_id,
+                "seq": seq,
+                "spn": spn,
+                "original_PS_id": otu,
+                "concat:status": "single run",
+            }
             self.sp_acc_comb[spn][genename][concat_id] = concat_dict
         else:
-            debug("something goes wrong, you should not try to add the same id several times....")
-        if concat_dict['spn'] is None:
+            physcraper.debug(
+                "something goes wrong, you should not try to add the same id several times...."
+            )
+        if concat_dict["spn"] is None:
             # we should never get here....
-            sys.stderr.write("There is no species name for the seq. Do not know how to concatenate then. "
-                             "Please remove seq from aln: {}.".format(data['^ncbi:accession']))
-            debug("THERE IS A SERIOUS PROBLEM....spn is none")
-            spn = self.get_taxon_info('^ot:ottTaxonName', data)
+            sys.stderr.write(
+                "There is no species name for the seq. Do not know how to concatenate then. "
+                "Please remove seq from aln: {}.".format(data["^ncbi:accession"])
+            )
+            physcraper.debug("THERE IS A SERIOUS PROBLEM....spn is none")
+            spn = self.get_taxon_info("^ot:ottTaxonName", data)
             self.sp_acc_comb[spn] = self.sp_acc_comb[unique_id]
             del self.sp_acc_comb[unique_id]
 
@@ -255,18 +261,18 @@ class Concat(object):
             if data[key] is None:
                 if '^ncbi:accession' in data:
                     gb_id = data['^ncbi:accession']
-                Entrez.email = self.email
-                tries = 5
-                for i in range(tries):
-                    try:
-                        handle = Entrez.efetch(db="nucleotide", id=gb_id, retmode="xml")
-                    except (IndexError, HTTPError) as err:
-                        sys.stderr.write(err)
-                        if i < tries - 1:  # i is zero indexed
-                            continue
-                        else:
-                            raise
-                    break
+                    Entrez.email = self.email
+                    tries = 5
+                    for i in range(tries):
+                        try:
+                            handle = Entrez.efetch(db="nucleotide", id=gb_id, retmode="xml")
+                        except (IndexError, HTTPError) as err:
+                            sys.stderr.write(err)
+                            if i < tries - 1:  # i is zero indexed
+                                continue
+                            else:
+                                raise
+                        break
                 read_handle = Entrez.read(handle)[0]
                 tax_name = read_handle['GBSeq_feature-table'][0]['GBFeature_quals'][0]['GBQualifier_value']
             else:
@@ -274,7 +280,7 @@ class Concat(object):
         assert tax_name is not None
         tax_name = tax_name.replace("_", " ")
         tax_name = tax_name.replace(".", "").replace("'", "")
-        tax_name = tax_name.encode('ascii')
+        tax_name = tax_name.encode("ascii")
         return tax_name
 
     def sp_seq_counter(self):
@@ -284,7 +290,7 @@ class Concat(object):
 
         :return: builds self.sp_counter
         """
-        debug("sp_seq_counter")
+        physcraper.debug("sp_seq_counter")
         for spn in self.sp_acc_comb:
             tmp_gene = deepcopy(self.genes_present)
             for gene in self.sp_acc_comb[spn]:
@@ -299,13 +305,13 @@ class Concat(object):
                     self.sp_counter[spn_new][item] = 0
                 else:
                     self.sp_counter[spn_new] = {item: 0}
-        debug(self.sp_counter)
+        physcraper.debug(self.sp_counter)
 
     def get_largest_tre(self):
         """Find the single gene tree with the most tips, which will be used as
         starting tree for concat phylo reconstruction.
         """
-        debug('get_largest_tre')
+        physcraper.debug("get_largest_tre")
         first = True
         len_all_taxa = {}
         for gene in self.single_runs:
@@ -329,7 +335,7 @@ class Concat(object):
     def make_sp_gene_dict(self):
         """Is the build around to make the dicts that are used to make it into a dendropy aln
         """
-        debug("make_sp_gene_dict")
+        physcraper.debug("make_sp_gene_dict")
         if self.concatfile is not None:
             self.user_defined_concat()
         else:
@@ -359,7 +365,7 @@ class Concat(object):
         """ Removes tips from tre as start that are not present in the concatenated aln
         and renames tips that are present.
         """
-        debug("rename_drop_tips")
+        physcraper.debug("rename_drop_tips")
         # leaf.taxon is never in concat_tips
         for leaf in self.tre_as_start.leaf_nodes():
             if leaf.taxon.label not in self.concat_tips.keys():
@@ -381,7 +387,7 @@ class Concat(object):
 
         :return: dictionary with taxon name and number saying how many genes are missing
         """
-        debug("sp to keep")
+        physcraper.debug("sp to keep")
         sp_to_keep = {}
         for spn in self.sp_counter:
             seq_counter = True
@@ -392,7 +398,7 @@ class Concat(object):
                     not_present += 1
             if not seq_counter:
                 sp_to_keep[spn] = not_present
-        # debug(sp_to_keep)
+        # physcraper.debug(sp_to_keep)
         return sp_to_keep
 
     def select_rnd_seq(self, spn, gene, del_acc):
@@ -406,7 +412,7 @@ class Concat(object):
         :param del_acc: dictionary that contains gene name: dict(spn: concat_id of random seq)
         :return: del_acc
         """
-        debug("select_rnd_seq")
+        physcraper.debug("select_rnd_seq")
         count = 2
         random_gen = random.choice(list(self.tmp_dict[spn][gene]))
         self.sp_acc_comb[spn][gene][random_gen]["concat:status"] = "used in concat"
@@ -479,7 +485,7 @@ class Concat(object):
         Dendropy needs same taxon_namespace and number otu's for concatenation. It will just make an empty sequence of
         the same length.
         """
-        # debug("make_empty_seq")
+        # physcraper.debug("make_empty_seq")
         len_gene_aln = 0
         for tax, seq in self.single_runs[gene].data.aln.items():
             len_gene_aln = len(seq)
@@ -494,7 +500,7 @@ class Concat(object):
     def rm_rnd_sp(self, del_acc):
         """Removes the random selected seq from the tmp_dict, so that it cannot be selected again.
         """
-        debug("rm_rnd sp")
+        physcraper.debug("rm_rnd sp")
         for spn2 in self.tmp_dict:
             for gene2 in self.tmp_dict[spn2]:
                 if gene2 in del_acc:
@@ -506,7 +512,7 @@ class Concat(object):
     def rm_empty_spn_entries(self, del_acc):
         """Removes keys from tmp dict, if the key/sp has no value anymore. Helper function.
         """
-        debug("rm_empty_spn_entries")
+        physcraper.debug("rm_empty_spn_entries")
         del_sp = None
         for spn2 in self.tmp_dict:
             for gene2 in self.tmp_dict[spn2]:
@@ -525,7 +531,7 @@ class Concat(object):
     def make_alns_dict(self):
         """Makes dendropy aln out of dict self.comb_seq for all genes.
         """
-        debug("make_alns_dict")
+        physcraper.debug("make_alns_dict")
         firstelement = True
         count = 0
         for gene in self.comb_seq.keys():
@@ -553,7 +559,7 @@ class Concat(object):
     def concatenate_alns(self):
         """Concatenate all alns into one aln.
         """
-        debug("concat alns")
+        physcraper.debug("concat alns")
         count = 0
         for gene in self.aln_all:
             if count == 0:
@@ -579,7 +585,7 @@ class Concat(object):
         The default is so low, as I want to keep taxa that have only a single locus
         and which is not the longest among the loci within the aln.
         """
-        debug("get_short_seq_from_concat")
+        physcraper.debug("get_short_seq_from_concat")
         seq_len = {}
         num_tax = 0
         for tax, seq in self.concatenated_aln.items():
@@ -591,7 +597,7 @@ class Concat(object):
             total_len = len(seq)
             break
         assert total_len != 0
-        min_len = (total_len * percentage)
+        min_len = total_len * percentage
         prune_shortest = []
         for tax, len_seq in seq_len.items():
             if len_seq < min_len:
@@ -602,7 +608,7 @@ class Concat(object):
         """Removes short seq that were found with get_short_seq
         and write it to file.
         """
-        debug("remove_short_seq")
+        physcraper.debug("remove_short_seq")
         self.concatenated_aln.remove_sequences(self.short_concat_seq)
         for leaf in self.tre_as_start.leaf_nodes():
             for tax in self.short_concat_seq:
@@ -666,7 +672,7 @@ class Concat(object):
     def write_partition(self):
         """Write the partitioning file for RAxML.
         """
-        debug("write_partition")
+        physcraper.debug("write_partition")
         count = 0
         len_gene = 0
         for gene in self.single_runs:
@@ -689,37 +695,46 @@ class Concat(object):
         """Places the new seqs (that are only found in loci which is not the starting tree)
         onto one of the single run trees.
         """
-        debug("place_new_seqs")
+        physcraper.debug("place_new_seqs")
         if len(self.concatenated_aln.taxon_namespace)-len(self.short_concat_seq) > len(self.tre_as_start.leaf_nodes()):
             if os.path.exists("RAxML_labelledTree.PLACE"):
                 os.rename("RAxML_labelledTree.PLACE", "RAxML_labelledTreePLACE.tmp")
             cwd = os.getcwd()
             os.chdir(self.workdir)
 
-            debug("make place-tree")
-            subprocess.call(["raxmlHPC", "-m", "GTRCAT",
-                             "-f", "v", "-q", "partition",
-                             "-s", "concat_red.fasta",
-                             "-t", "starting_red.tre",
-                             "-n", "PLACE"])
+            physcraper.debug("make place-tree")
+            try:
+                num_threads = int(self.config.num_threads)
+                print(num_threads)
+                subprocess.call(["raxmlHPC-PTHREADS", "-T", "{}".format(num_threads), "-m", "GTRCAT",
+                                 "-f", "v", "-q", "partition",
+                                 "-s", "concat_red.fasta",
+                                 "-t", "starting_red.tre",
+                                 "-n", "PLACE"])
+            except:
+                subprocess.call(["raxmlHPC", "-m", "GTRCAT",
+                                 "-f", "v", "-q", "partition",
+                                 "-s", "concat_red.fasta",
+                                 "-t", "starting_red.tre",
+                                 "-n", "PLACE"])
             os.chdir(cwd)
-            debug("read place tree")
+            physcraper.debug("read place tree")
             placetre = Tree.get(path="{}/starting_red.tre".format(self.workdir),
                                 schema="newick",
                                 preserve_underscores=True,
                                 suppress_internal_node_taxa=True, suppress_leaf_node_taxa=True)
-            debug("resolve polytomies")
+            physcraper.debug("resolve polytomies")
             placetre.resolve_polytomies()
             placetre.write(path="{}/place_resolve.tre".format(self.workdir), schema="newick", unquoted_underscores=True)
 
     def est_full_tree(self):
         """Full raxml run from the placement tree as starting tree.
         """
-        debug("run full tree")
+        physcraper.debug("run full tree")
         cwd = os.getcwd()
         os.chdir(self.workdir)
         if os.path.exists("place_resolve.tre"):
-            starting_fn = 'place_resolve.tre'
+            starting_fn = "place_resolve.tre"
         else:
             starting_fn = "starting_red.tre"
         if os.path.exists("concat_red.fasta.reduced"):
@@ -728,7 +743,16 @@ class Concat(object):
         else:
             aln = "concat_red.fasta"
             partition = "partition"
-        subprocess.call(["raxmlHPC", "-m", "GTRCAT",
+        try:
+            num_threads = int(self.config.num_threads)
+            print(num_threads)
+            subprocess.call(["raxmlHPC-PTHREADS", "-T", "{}".format(num_threads), "-m", "GTRCAT",
+                         "-s", aln, "--print-identical-sequences",
+                         "-t", "{}".format(starting_fn),
+                         "-p", "1", "-q", partition,
+                         "-n", "concat"])
+        except:
+            subprocess.call(["raxmlHPC", "-m", "GTRCAT",
                          "-s", aln, "--print-identical-sequences",
                          "-t", "{}".format(starting_fn),
                          "-p", "1", "-q", partition,
@@ -755,32 +779,55 @@ class Concat(object):
         # make bipartition tree
         # is the -f b command
         # -z specifies file with multiple trees
-        subprocess.call(["raxmlHPC", "-m", "GTRCAT",
-                         "-s", aln,  "-q", partition,
-                         # "-t", "place_resolve.tre", 
-                         "-p", "1", "-b", "1", "-#", "autoMRE",
-                         "-n", "autoMRE"])
-        subprocess.call(["raxmlHPC", "-m", "GTRCAT",
-                         "-s", aln, "-q", partition,
-                         "-p", "1", "-f", "a", "-x", "1", "-#", "autoMRE_fa",
-                         "-n", "autoMRE"])
-        # strict consensus:
-        subprocess.call(["raxmlHPC", "-m", "GTRCAT",
-                         "-J", "STRICT",
-                         "-z", "RAxML_bootstrap.autoMRE",
-                         "-n", "StrictCon"])
-        # majority rule:
-        subprocess.call(["raxmlHPC", "-m", "GTRCAT",
-                         "-J", "MR",
-                         "-z", "RAxML_bootstrap.autoMRE",
-                         "-n", "MR"])
+        try:
+            num_threads = int(self.config.num_threads)
+            debug(num_threads)
+            subprocess.call(["raxmlHPC-PTHREADS", "-T", "{}".format(num_threads), "-m", "GTRCAT",
+                             "-s", aln,  "-q", partition,
+                             # "-t", "place_resolve.tre", 
+                             "-p", "1", "-b", "1", "-#", "autoMRE",
+                             "-n", "autoMRE"])
+            subprocess.call(["raxmlHPC-PTHREADS", "-T", "{}".format(num_threads), "-m", "GTRCAT",
+                             "-s", aln, "-q", partition,
+                             "-p", "1", "-f", "a", "-x", "1", "-#", "autoMRE",
+                             "-n", "autoMRE_fa"])
+            # strict consensus:
+            subprocess.call(["raxmlHPC-PTHREADS", "-T", "{}".format(num_threads), "-m", "GTRCAT",
+                             "-J", "STRICT",
+                             "-z", "RAxML_bootstrap.autoMRE",
+                             "-n", "StrictCon"])
+            # majority rule:
+            subprocess.call(["raxmlHPC-PTHREADS", "-T", "{}".format(num_threads), "-m", "GTRCAT",
+                             "-J", "MR",
+                             "-z", "RAxML_bootstrap.autoMRE",
+                             "-n", "MR"])
+        except:
+            subprocess.call(["raxmlHPC", "-m", "GTRCAT",
+                             "-s", aln,  "-q", partition,
+                             # "-t", "place_resolve.tre", 
+                             "-p", "1", "-b", "1", "-#", "autoMRE",
+                             "-n", "autoMRE"])
+            subprocess.call(["raxmlHPC", "-m", "GTRCAT",
+                             "-s", aln, "-q", partition,
+                             "-p", "1", "-f", "a", "-x", "1", "-#", "autoMRE",
+                             "-n", "autoMRE_fa"])
+            # strict consensus:
+            subprocess.call(["raxmlHPC", "-m", "GTRCAT",
+                             "-J", "STRICT",
+                             "-z", "RAxML_bootstrap.autoMRE",
+                             "-n", "StrictCon"])
+            # majority rule:
+            subprocess.call(["raxmlHPC", "-m", "GTRCAT",
+                             "-J", "MR",
+                             "-z", "RAxML_bootstrap.autoMRE",
+                             "-n", "MR"])
 
     def user_defined_concat(self):
         """If a user gave an input file to concatenate data. Fills in the data for self.comb_seq, self.comb_acc
         (is the replacement function for select_rnd_seq).
         """
-        debug("user_defined_concat")
-        with open("{}/{}".format(self.workdir, self.concatfile), mode='r') as infile:
+        physcraper.debug("user_defined_concat")
+        with open("{}/{}".format(self.workdir, self.concatfile), mode="r") as infile:
             reader = csv.reader(infile)
             sp_concat = dict((rows[0], rows[1]) for rows in reader)
         for otu in sp_concat.keys():
@@ -855,3 +902,43 @@ class Concat(object):
         """ Save a concat run as pickle.
         """
         pickle.dump(self, open("{}/{}".format(self.workdir, filename), "wb"))
+
+    def write_otu_info(self, downtorank=None):
+        """Writes output tables to file: Makes reading important information less code heavy.
+
+        file with all relevant GenBank info to file (otu_dict).
+
+        It uses the self.sp_d to get sampling information, that's why the downtorank is required.
+
+        :param downtorank: hierarchical filter
+        :return: writes output to file
+        """   
+        otu_dict_keys = [
+            "unique_id", "spn", "original_PS_id", "concat:status"]
+        with open("otu_seq_info.csv", "w") as output:
+            writer = csv.writer(output)
+            writer.writerow(otu_dict_keys, )
+            # print(self.sp_acc_comb.keys())
+            for otu in self.sp_acc_comb.keys():
+                # print(self.sp_acc_comb[otu].keys())
+                
+                # rowinfo = spn_writer
+                for loci in self.sp_acc_comb[otu].keys():
+                    
+                    print("newinfo")
+                    rowinfo = [loci]
+                    # print(self.sp_acc_comb[otu][loci])
+                    for concat_id in self.sp_acc_comb[otu][loci].keys():
+                        rowinfo_details = deepcopy(rowinfo)
+                        print(rowinfo_details)
+                        rowinfo_details.append(concat_id)
+
+                        for item in otu_dict_keys:
+                            if item in self.sp_acc_comb[otu][loci][concat_id].keys():
+                                tofile = str(self.sp_acc_comb[otu][loci][concat_id][item]).replace("_", " ")
+                                rowinfo_details.append(tofile)
+                            else:
+                                rowinfo_details.append("-")
+                        print(rowinfo_details)
+                        writer.writerow(rowinfo_details)                
+

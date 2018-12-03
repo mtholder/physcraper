@@ -46,10 +46,9 @@ After the single-gene datasets are updated, the data can be concatenated. Either
         * Install a local Blast database:
 
             General information about the BLAST database can be found here: ftp://ftp.ncbi.nlm.nih.gov/blast/documents/blastdb.html.
-        
+    
             In Linux to install the BLAST database do the following (for Windows and MAC please use google to figure it out, there should be plenty of information.):
-            Note that you can also have the program do the installation for you. If you specify in your config file, that the `location = local`, it will ask you if you want to install the different databases.
-            
+
           * `open a terminal`
           * `cd /to/the/folder/of/your/future/blastdb`  
           * `sudo apt-get install ncbi-blast+` # if not already installed earlier
@@ -73,7 +72,8 @@ After the single-gene datasets are updated, the data can be concatenated. Either
     
         * install the taxonomic rank database:
              *  `wget 'ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz'`
-             *  `gunzip  -cd taxdump.tar.gz | (tar xvf - names.dmp nodes.dmp)`  # moves files into `tests/data/`
+             *  `gunzip  -cd taxdump.tar.gz | (tar xvf - names.dmp nodes.dmp)`  
+             *  move files into `tests/data/`
         * updating the databases:
         
              The databases need to be update regularly, the program will check the dates of your databases and will ask you to update the databases after 60 days. If your databases are older, you will be asked for input, if you want to update the databases. 

@@ -2,7 +2,6 @@ import physcraper
 import sys
 import pickle
 import os
-from physcraper import wrappers
 from dendropy import DnaCharacterMatrix
 
 #Use OpenTree phylesystem identifiers to get study and tree
@@ -15,9 +14,11 @@ absworkdir = os.path.abspath(workdir)
 
 configfi = "tests/data/test.config"
 
-try:
+# try:
+
+if os.path.isfile("tests/data/precooked/otol_scraper.p"):
     # physcraper.debug(os.getcwd())
-    conf = ConfigObj(configfi, interactive=False)
+    conf = physcraper.ConfigObj(configfi, interactive=False)
     # physcraper.debug("conf")
     conf.unmapped = 'keep'
     # physcraper.debug("set unmapped")
@@ -34,7 +35,8 @@ try:
     # physcraper.debug('num_keep')
 
     # physcraper.debug(num_keep)
-except:
+# except:
+else:
     sys.stdout.write("\n\n No files present\n\n")
     conf = physcraper.ConfigObj(configfi)
     conf.unmapped = 'keep'
@@ -57,46 +59,26 @@ except:
     pickle.dump(scraper, open("tests/data/precooked/otol_scraper.p", "wb"))
     num_keep = len(scraper.data.aln.taxon_namespace)
     # physcraper.debug(num_keep)
-try:
-    # get length of aln, remove should have less than keep
-    # physcraper.debug("try")
-    ids.config.unmapped = 'remove'
-    scraper2 = physcraper.PhyscraperScrape(data_obj, ids)
-    # physcraper.debug('scraper2 loaded')
-    # physcraper.debug(scraper.data.aln)
-    # physcraper.debug(len(scraper.data.aln.taxon_namespace))
-    num_remove = len(scraper2.data.aln.taxon_namespace)
-    # physcraper.debug(num_remove)
-
-    # num_keep = len(scraper.data.aln.taxon_namespace)
-    # physcraper.debug(num_keep)
-    dict_id = 0
-    for tax in scraper.data.aln.taxon_namespace:
-        # physcraper.debug(tax)
-        if '^ot:ottId' in scraper.data.otu_dict[tax.label]:
-            dict_id = dict_id + 1
-    # physcraper.debug(num_keep,num_remove, dict_id)
 
 
-    pickle.dump(data_obj, open("tests/data/precooked/otol_tiny_dataobj.p", "wb" ))
-    ids =  physcraper.IdDicts(conf, workdir=workdir)
-    pickle.dump(ids.acc_ncbi_dict, open("tests/data/precooked/otol_tiny_gi_map.p", "wb"))
-    data_obj.write_files()
-    scraper = physcraper.PhyscraperScrape(data_obj, ids)
-    pickle.dump(scraper.config, open("tests/data/precooked/otol_conf.p", "wb"))
-    pickle.dump(scraper, open("tests/data/precooked/otol_scraper.p", "wb"))
-    num_keep = len(scraper.data.aln.taxon_namespace)
-try:
-    # get length of aln, remove should have less than keep
-    ids.config.unmapped = 'remove'
+
+
+def test_unmapped():
+    conf = physcraper.ConfigObj(configfi, interactive=False)
+    conf.unmapped = 'remove'
+
+
+    data_obj = pickle.load(open("tests/data/precooked/otol_tiny_dataobj.p", 'rb'))
+    data_obj.workdir = absworkdir
+
+    ids = physcraper.IdDicts(conf, workdir=data_obj.workdir)
+
     scraper2 = physcraper.PhyscraperScrape(data_obj, ids)
     num_remove = len(scraper2.data.aln.taxon_namespace)
     dict_id = 0
     for tax in scraper.data.aln.taxon_namespace:
         if '^ot:ottId' in scraper.data.otu_dict[tax.label]:
             dict_id = dict_id + 1
+    # print(num_remove, num_keep, dict_id)
     assert num_remove <= num_keep - 1
     assert num_keep == dict_id
-    sys.stdout.write("\nTest passed\n")
-except:
-    sys.stdout.write("\nTest FAILED'\n")

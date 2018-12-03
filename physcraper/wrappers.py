@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import absolute_import
 import pickle
 import sys
 import os
@@ -12,7 +13,7 @@ from physcraper import (
 )
 from physcraper import FilterBlast, Settings, debug  # Concat
 from dendropy import DnaCharacterMatrix
-from concat import Concat
+from .concat import Concat
 
 print("Current Wrapper Version number: 09142018.0")
 
@@ -231,7 +232,6 @@ def filter_OTOL(study_id,
         sys.stdout.write("Reloading from pickled scrapefile: scrape\n")
         filteredScrape = pickle.load(open("{}/scrape_checkpoint.p".format(workdir), 'rb'))
         filteredScrape.repeat = 1   
-    else:
         sys.stdout.write("setting up Data Object\n")
         sys.stdout.flush()
         # read the config file into a configuration object
@@ -261,7 +261,6 @@ def filter_OTOL(study_id,
         # Now combine the data, the ids, and the configuration into a single physcraper scrape object
         filteredScrape = FilterBlast(data_obj, ids)
         filteredScrape.add_setting_to_self(downtorank, threshold)
-
         filteredScrape.blacklist = blacklist
         if add_unpubl_seq is not None:
             filteredScrape.unpublished = True
@@ -366,9 +365,7 @@ def add_unpubl_to_backbone(seqaln,
 
         # Now combine the data, the ids, and the configuration into a single physcraper scrape object
         filteredScrape = FilterBlast(data_obj, ids)
-
         filteredScrape.add_setting_to_self(downtorank, threshold)
-
         filteredScrape.blacklist = blacklist
         if add_unpubl_seq is not None:
             filteredScrape.unpublished = True
@@ -382,14 +379,9 @@ def add_unpubl_to_backbone(seqaln,
             filteredScrape.write_unpubl_blastdb(add_unpubl_seq)
             filteredScrape.run_blast_wrapper(delay=14)
 
-
-
             print("add unpubl otu json")
             filteredScrape.data.unpubl_otu_json = id_to_spn_addseq_json
             print(filteredScrape.data.unpubl_otu_json)
-
-
-
             filteredScrape.read_blast_wrapper()
             filteredScrape.remove_identical_seqs()
             filteredScrape.generate_streamed_alignment()
@@ -688,5 +680,6 @@ def concat(genelistdict, workdir_comb, email, percentage=0.37, user_concat_fn=No
     concat.place_new_seqs()
     concat.est_full_tree()
     concat.calculate_bootstrap()
+    concat.write_otu_info()
     return concat
 
