@@ -37,7 +37,7 @@ def test_mrca_list():
 
     filteredScrape.read_blast_wrapper(blast_dir=blast_dir)
     filteredScrape.remove_identical_seqs()
-    assert len(filteredScrape.new_seqs_otu_id) == 61
+    assert len(filteredScrape.new_seqs_otu_id) == 63
     #fixed length to reflect new length after taxon_id as integer fix in line 2190
 
 
@@ -105,5 +105,5 @@ def test_higher_mrca():
 
     filteredScrape.read_blast_wrapper(blast_dir=blast_dir)
     filteredScrape.remove_identical_seqs()
-    assert len(filteredScrape.new_seqs_otu_id) > 61
+    assert len(filteredScrape.new_seqs_otu_id) > 63
 

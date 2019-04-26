@@ -16,6 +16,7 @@ import random
 import contextlib
 import time
 import csv
+import shutil
 # from mpi4py import MPI
 from past.builtins import xrange
 from builtins import input
@@ -24,6 +25,8 @@ from ete2 import NCBITaxa
 import physcraper.AWSWWW as AWSWWW
 from Bio.Blast import NCBIXML
 from Bio import Entrez
+from Bio.Seq import Seq
+from Bio.Alphabet import generic_dna
 from dendropy import Tree, DnaCharacterMatrix, DataSet, datamodel
 from peyotl.api.phylesystem_api import PhylesystemAPI, APIWrapper
 from peyotl.sugar import tree_of_life, taxomachine
@@ -1577,7 +1580,7 @@ class PhyscraperScrape(object):
         #debug(self.mrca_ncbi_list)
         debug("created physcaper ncbi_mrca {}, len {}".format(self.mrca_ncbi_list, len(self.mrca_ncbi_list)))
         self.map_taxa_to_ncbi()
-
+        self.acc_ncbiid = {}  # speedup to get taxid that corresponds to accession numbers
 
     def get_ncbi_mrca(self):
         """ get the ncbi tax ids from a set of mrca ott ids.
@@ -1815,6 +1818,8 @@ class PhyscraperScrape(object):
         :param var_list: list of needed variables
         :param query_dict: dict with a query seqs that is filled and returned
         """
+
+        debug("get_new_seqs_for_mergedseq")
         gb_acc, gi_id, sseq, staxids, sscinames, pident, evalue, bitscore, salltitles, sallseqid =  [var for var in var_list]
 
         found_taxids = set()
@@ -1856,6 +1861,8 @@ class PhyscraperScrape(object):
                     stitle = salltitles_l[i]
                     # if both var are the same, we do not need to search GB for taxon info
                     # staxids = tax_id_l[i]
+                    # print(gb_acc)
+                    # print(self.get_taxid_from_acc(gb_acc))
                     staxids = int(self.get_taxid_from_acc(gb_acc)[0])  # corresponding taxid is always in first position
                     # debug(qtaxid)
                     id_before = id_now
@@ -1953,6 +1960,7 @@ class PhyscraperScrape(object):
                 evalue = float(evalue)
                 bitscore = float(bitscore)
                 stitle = salltitles
+
                 # get additional info only for seq that pass the eval
                 if evalue < float(self.config.e_value_thresh):
                     if gb_acc not in self.acc_ncbiid.keys(): # do not do it for gb_ids we already considered
@@ -1972,22 +1980,271 @@ class PhyscraperScrape(object):
                                                       'sscinames': sscinames, 'pident': pident, 'evalue': evalue,
                                                       'bitscore': bitscore, 'sseq': sseq, 'title': stitle}
         # debug("key in query")
+        # add data which was not added before and that passes the evalue threshhold
+        gb_acc_d = {}
         for key in query_dict.keys():
             if float(query_dict[key]["evalue"]) < float(self.config.e_value_thresh):
                 gb_acc = query_dict[key]["accession"]
-                if len(gb_acc.split(".")) >= 2:
-                    # skip ones we already wanted to add earlier, exception if add_lower_taxa
-                    if gb_acc not in self.data.gb_dict or self.config.add_lower_taxa is True:
-                        # debug("add gb_dict")
-                        self.new_seqs[gb_acc] = query_dict[key]["sseq"]
-                        self.data.gb_dict[gb_acc] = query_dict[key]
-                # else:
-                    # debug("was added before")
+                if gb_acc not in self.data.gb_dict.keys()  or self.config.add_lower_taxa is True:
+                    # make dict with queries for full seq batch
+                    gb_acc_d[gb_acc] = query_dict[key]["sseq"]
+                    # #######################################################
+                    # # not needed if we will use the batch alternative
+                    # if len(gb_acc.split(".")) >= 2:  # Do not add sequences that are not in Genbank accession number format, e.g. PDB
+                    #     # replace sequence
+                    #     full_seq = self.get_full_seq(gb_acc, query_dict[key]["sseq"])
+                    #     query_dict[key]["sseq"] = full_seq  
+                    #     
+                    #     self.new_seqs[gb_acc] = query_dict[key]["sseq"]
+                    #     assert len(self.new_seqs.keys() == len(query_dict.keys()))
+                    #     self.data.gb_dict[gb_acc] = query_dict[key]
+                    # else:
+                    #     debug("was added before or genbank format wrong")
+                    #########################################################
             else:
                 fn = open("{}/blast_threshold_not_passed.csv".format(self.workdir), "a+")
                 fn.write("blast_threshold_not_passed: {}, {}, {}\n".format(query_dict[key]["sscinames"], query_dict[key]["accession"],
                          query_dict[key]["evalue"]))
                 fn.close()
+        if gb_acc_d != {}:
+            seq_d = self.get_full_seq_batch(gb_acc_d)  # currently we get full seqs of all seqs found in a single blast search and which were not discarded until this point.
+            assert len(seq_d.keys()) == len(gb_acc_d.keys()), (len(seq_d.keys()), len(gb_acc_d.keys()))
+            for key in seq_d:
+                query_dict[key]["sseq"] = seq_d[key]  
+                self.new_seqs[key] = query_dict[key]["sseq"]
+                self.data.gb_dict[key] = query_dict[key]
+
+    def get_full_seq_batch(self, gb_acc_dict):
+        """
+        Get full sequences using a batch query. Is likely faster than doing it one by one. 
+
+        Implemented currently only to use with the Genbank database, not for local databases.
+        It gets the full seqs and makes sure they are being added in the correct direction to the dict.
+
+        :param gb_acc_dict: list with Genbank accession numbers, where we want to get the full sequence from the db
+        :return: dictionary with full sequences
+        """
+        debug("get_full_seq_batch")
+        debug(gb_acc_dict.keys())
+        assert len(gb_acc_dict.keys()) > 0, gb_acc_dict.keys()
+        # if not testing, get full seqs from blastdb for input gb_acc_dict
+        if not self.config.blastdb == "./tests/data/precooked/testing_localdb":  # if we are not in testing mode
+            if not os.path.exists("{}/tmp".format(self.workdir)):
+                os.mkdir("{}/tmp".format(self.workdir))
+            fn = "{}/tmp/tmp_search.csv".format(self.workdir)
+            fn_open = open(fn, "w+")
+            for gb_acc in gb_acc_dict:
+                # gb_nv = gb_acc.split(".")[0]
+                fn_open.write("{}\n".format(gb_acc))
+
+                # fn_open.write("{}\n".format(gb_nv))
+            fn_open.close()
+            
+            db_path = "{}/nt".format(self.config.blastdb)
+            if len(gb_acc_dict.keys()) >= 2:
+                cmd1 = "blastdbcmd -db {}  -entry_batch {} -outfmt %f -out {}/tmp/all_full_seqs.fasta".format(db_path, fn, self.workdir)
+            else:
+                cmd1 = "blastdbcmd -db {}  -entry {} -outfmt %f -out {}/tmp/all_full_seqs.fasta".format(db_path, gb_acc_dict.keys()[0], self.workdir)
+            debug(cmd1)
+            os.system(cmd1)
+            # # this is code used to copy needed file for test: cmd1 output is named: tmp_full_seqs_perfile.fasta, 
+            # f = open("{}/tmp/all_full_seqs.fasta".format(self.workdir), "a+")
+            # internal_file = open("{}/tmp/tmp_full_seqs_perfile.fasta".format(self.workdir))
+            # f.write(internal_file.read())
+        
+        else:
+            debug("copy files for testing")
+            file_name = "{}/all_full_seqs.fasta".format('./tests/data/precooked/testing_localdb') 
+            if (os.path.isfile(file_name)):
+                dest = "{}/tmp/all_full_seqs.fasta".format(self.workdir)
+                shutil.copy(file_name, dest)
+        
+        # read in file to get full seq        
+        fn = "{}/tmp/all_full_seqs.fasta".format(self.workdir)
+
+        # # assert that every gb_acc is found in file, sometimes only one of the methods seem to work, even though acc is in file.
+        for item in gb_acc_dict:
+            found = False
+            with open(fn) as myfile:
+                if item.split(".")[0] in myfile.read():
+                    found = True
+            found2 = False
+            df = file(fn)
+            for line in df:
+                if item.split(".")[0] in line:
+                    found2 = True
+            assert found == True or found2 == True, (item, fn, found, found2)
+
+            # try:
+            #     assert found == True or found2 == True, (item, fn, found, found2)
+            # except: 
+            #     print("not found")
+            #     print(item, fn)
+            # assert found2 == True, (item, fn, found2)
+            # assert found == True, (item, fn, found)
+
+        # find correct strand for each gb_acc
+        f = open(fn)
+        seq = ""
+        full_seqs = {}  # dictionary to be filled with full seqs that are in the correct direction
+        gb_acc_l_intern = set()
+        count = 0
+        debug("get correct")
+        for line in iter(f):
+            line = line.rstrip().lstrip()
+            if line[0]  != ">":  # '>' delimits identifier in those files
+                seq += line
+            elif line[0]  == ">":
+                count += 1
+                if seq != "" and len(gb_acc_l_intern) != 0:
+                    # debug("get following seqs")
+                    # before = deepcopy(full_seqs)
+                    full_seqs = self.find_correct_strand(full_seqs, gb_acc_l_intern, gb_acc_dict, seq)
+                    # assert before != full_seqs, (before == full_seqs, before, full_seqs )  # does not work, as sometimes exact same seq
+                seq = ""
+
+                # now get new gb_acc for this line
+                splitline = line.split(">")
+                del splitline[0]  # remove first element of list, which is an empty string bc of split ">"
+
+                gb_acc_l_intern = set()  # reassign for new list
+                # print(splitline)
+                for item in splitline:
+                    if "emb" in item or "gb" in item or "dbj" in item:
+                        gb_acc = get_acc_from_blast(item)
+                        # debug([gb_acc, gb_acc_dict.keys()])
+                        # print(gb_acc)
+                        # print(gb_acc in gb_acc_dict.keys())
+                        # print(gb_acc_dict.keys())
+                        if gb_acc in gb_acc_dict:
+                            gb_acc_l_intern.add(gb_acc)
+                seq = ""  # make new empty string for next seq
+        f.close()
+        # assert len(gb_acc_l_intern) > 0, (len(gb_acc_l_intern), gb_acc_l_intern)
+
+        # get information for last for loop cycle
+        # debug("get last seq")
+        if seq != "" and len(gb_acc_l_intern) != 0:
+            full_seqs = self.find_correct_strand(full_seqs, gb_acc_l_intern, gb_acc_dict, seq)
+
+        assert set(full_seqs.keys()) == set(gb_acc_dict.keys()), ("missing in query_acc:", [x for x in set(full_seqs.keys()) if x not in set(gb_acc_dict.keys())], "missing in full seqs:", [x for x in set(gb_acc_dict.keys()) if x not in set(full_seqs.keys())])
+        assert set(gb_acc_dict.keys()) == set(full_seqs.keys()), ([x for x in  gb_acc_dict if x not in full_seqs.keys()])
+
+        return full_seqs
+
+    def find_correct_strand(self, full_seqs, gb_acc_l_intern, gb_acc_dict, seq):
+        """
+        Find the right direction for the sequences to be added. Used for batch query only.
+
+        :param full_seqs: is a dictionary to where the full seqs are added
+        :param gb_acc_l_intern: is a list of all the gb_acc that are merged into one sequence
+        :param gb_acc_dict: dictionary with all gb_acc and short_blast_seqs for which we want to get the longer sequences
+        :param seq: is the longer sequence from the blast db
+        :return: dictionary with the full sequences in the correct direction  is returned
+        """
+        # debug("find_correct_strand")
+        # debug(seq)
+        # debug(gb_acc_l_intern)
+        # debug("do assert")
+        assert len(gb_acc_l_intern) != 0, (len(gb_acc_l_intern))
+        # assert gb_acc_l_intern is not set([])  # this statement does not break if var is set([])
+        assert seq != ""
+        # len_before = len(full_seqs.keys())
+        for gb_acc in gb_acc_l_intern:
+            assert gb_acc is not None
+            blast_seq = gb_acc_dict[gb_acc]
+            orig = Seq(seq, generic_dna)
+            dna_comp = orig.complement()
+            dna_rcomp = orig.reverse_complement()
+            dna_r = orig[::-1]
+            full_seq = str()
+            if blast_seq.replace("-", "") in orig:
+                # print("orig")
+                full_seq = seq
+            elif blast_seq.replace("-", "") in dna_r:
+                full_seq = dna_r
+            elif blast_seq.replace("-", "") in dna_comp:
+                full_seq = dna_comp
+            elif blast_seq.replace("-", "") in dna_rcomp:
+                full_seq = dna_rcomp
+            assert blast_seq.replace("-", "") in full_seq, (blast_seq.replace("-", ""), full_seq, seq, gb_acc)
+            full_seq = str(full_seq)
+            assert type(full_seq) == str, (type(full_seq))
+            full_seqs[gb_acc] = full_seq
+        # len_after = len(full_seqs.keys())
+        # assert len_before < len_after, (len_before, len_after)
+        return full_seqs
+
+    def get_full_seq(self, gb_acc, blast_seq, local=False):
+        """
+        Get full sequence from gb_acc that was retrieved via blast. 
+
+        Currently only used for local searches, Genbank database sequences are retrieving them in batch mode, which is hopefully faster.
+
+        :param gb_acc: unique sequence identifier (often genbank accession number)
+        :param blast_seq: sequence retrived by blast,
+        :return: full sequence, the whole submitted sequence, not only the part that matched the blast query sequence
+        """
+        # debug("get full seq")
+        # if we did not already try to get full seq:
+
+        if local:  # no need to make a db first (it already exists), we just open it and get full seq
+            fn = "{}/blast/local_unpubl_seq_db".format(self.workdir)  
+            seq = ""
+            # read in file to get full seq        
+            found = False
+            with open(fn) as f:
+                for i, line in enumerate(f):
+                    if found:
+                        seq = line.rstrip().lstrip()
+                        seq = seq.upper()
+                        break
+                    elif gb_acc in line:
+                        found = True
+            # debug([gb_acc, seq])
+        else:  # currently replaced with batch_full_seq
+            if not self.config.blastdb == "./tests/data/precooked/testing_localdb":  # if we are not in testing mode
+                if not os.path.exists("{}/tmp".format(self.workdir)):
+                    os.mkdir("{}/tmp".format(self.workdir))
+                if not os.path.exists("{}/tmp/full_seq_{}".format(self.workdir, gb_acc)):
+                    fn = "{}/tmp/tmp_search.csv".format(self.workdir)
+                    fn_open = open(fn, "w+")
+                    fn_open.write("{}\n".format(gb_acc.split(".")[0]))
+                    fn_open.close()
+                    db_path = "{}/nt".format(self.config.blastdb)
+
+                    cmd1 = "blastdbcmd -db {}  -entry_batch {} -outfmt %f -out {}/tmp/full_seq_{}.fasta".format(db_path, fn, self.workdir, gb_acc)
+                    # debug(cmd1)
+                    os.system(cmd1)
+                    # read in file to get full seq        
+                    fn = "{}/tmp/full_seq_{}.fasta".format(self.workdir, gb_acc)
+                    f = open(fn)
+                    seq = ""
+                    for line in iter(f):
+                        line = line.rstrip().lstrip()
+                        if line[0]  != ">":
+                            seq += line
+                        elif line[0]  == ">":
+                            assert gb_acc in line
+                    f.close()
+        # check direction of sequence:
+        orig = Seq(seq, generic_dna)
+        dna_comp = orig.complement()
+        dna_rcomp = orig.reverse_complement()
+        dna_r = orig[::-1]
+        full_seq = str()
+        if blast_seq.replace("-", "") in orig:
+            full_seq = seq
+        elif blast_seq.replace("-", "") in dna_r:
+            full_seq = dna_r
+        elif blast_seq.replace("-", "") in dna_comp:
+            full_seq = dna_comp
+        elif blast_seq.replace("-", "") in dna_rcomp:
+            full_seq = dna_rcomp
+        assert blast_seq.replace("-", "") in full_seq, (blast_seq.replace("-", ""), full_seq, seq, gb_acc)
+        full_seq = str(full_seq)
+        assert type(full_seq) == str, (type(full_seq))
+        return full_seq
 
     def get_taxid_from_acc(self, gb_acc):
         """
@@ -2045,8 +2302,8 @@ class PhyscraperScrape(object):
                     if float(hsp.expect) < float(self.config.e_value_thresh):
                         if local_id not in self.data.gb_dict:  # skip ones we already have
                             unpbl_local_id = "unpubl_{}".format(local_id)
-                            self.new_seqs[unpbl_local_id] = hsp.sbjct
-                            # debug(self.new_seqs[unpbl_local_id])
+                            full_seq = self.get_full_seq(local_id, hsp.sbjct, local=True)
+                            self.new_seqs[unpbl_local_id] = full_seq
                             self.data.gb_dict[unpbl_local_id] = {'title': "unpublished", 'localID': local_id}
                             self.data.gb_dict[unpbl_local_id].update(
                                 self.data.unpubl_otu_json['otu{}'.format(local_id.replace("_", "").replace("-", ""))])
@@ -2075,26 +2332,20 @@ class PhyscraperScrape(object):
                 for alignment in blast_record.alignments:
                     for hsp in alignment.hsps:
                         if float(hsp.expect) < float(self.config.e_value_thresh):
-                            gb_id = alignment.title.split("|")[3]  # 1 is for gi
-                            if len(gb_id.split(".")) == 1:
-                                debug(gb_id)
-                            if gb_id not in self.data.gb_dict:  # skip ones we already have
-                                # gb_id = int(alignment.title.split('|')[1])  # 1 is for gi
-                                # assert type(gb_id) is int
-                                # SHOULD NOT BE NECESSARY....IS WEBBLAST HAS THE TAXON ALREADY LIMITED
-                                # if len(self.acc_list_mrca) >= 1 and (gb_id not in self.acc_list_mrca):
-                                #     pass
-                                # else:
-                                taxid,taxname, seq = self.ids.get_tax_seq_acc(gb_id)
-                                self.new_seqs[gb_id] = seq
-                                gi_id = alignment.title.split('|')[1]
-                                gb_acc = alignment.__dict__['accession']
-                                stitle = alignment.__dict__['title']
-                                hsps = alignment.__dict__['hsps']
-                                length = alignment.__dict__['length']
-                                query_dict = {'^ncbi:gi': gi_id, 'accession': gb_acc, 'title': stitle,
-                                              'length': length, 'hsps': hsps}
-                                self.data.gb_dict[gb_id] = query_dict
+                            gb_acc = get_acc_from_blast(alignment.title)
+                            if gb_acc not in self.data.gb_dict or self.config.add_lower_taxa is True:  # skip ones we already have
+                                if len(gb_acc.split(".")) >= 2:  # do not add sequences that are not in genbank accession format
+                                    taxid,taxname, seq = self.ids.get_tax_seq_acc(gb_acc)
+                                    self.new_seqs[gb_acc] = seq
+                                    # gi_id = alignment.title.split('|')[1]
+                                    gi_id = get_gi_from_blast(alignment.title)
+                                    # gb_acc = alignment.__dict__['accession']
+                                    stitle = alignment.__dict__['title']
+                                    hsps = alignment.__dict__['hsps']
+                                    length = alignment.__dict__['length']
+                                    query_dict = {'^ncbi:gi': gi_id, 'accession': gb_acc, 'title': stitle,
+                                                  'length': length, 'hsps': hsps}
+                                    self.data.gb_dict[gb_acc] = query_dict
                         else:
                             writeinfofiles.write_not_added_info(self, gb_acc, "threshold not passed")
                             # needs to be deleted from gb_dict,
@@ -3048,6 +3299,19 @@ class FilterBlast(PhyscraperScrape):
                     self.sp_d[tax_id].append(otu_id)
                 else:
                     self.sp_d[tax_id] = [otu_id]
+        for tax_id in self.sp_d:
+            otu_list = self.sp_d[tax_id]
+            in_aln = 0
+            orig = 0
+            for otu in otu_list:
+                status = self.data.otu_dict[otu]['^physcraper:status']
+                if status.split(' ')[0]  == "added":
+                    in_aln += 1
+                if status.split(' ')[0]  == "original":
+                    in_aln += 1
+                    orig =+ 1
+            if self.threshold is not None:
+                assert in_aln <= self.threshold or (in_aln - orig) < self.threshold, (in_aln, orig, self.threshold)
         return self.sp_d
 
     def make_sp_seq_dict(self):
@@ -3357,7 +3621,7 @@ class FilterBlast(PhyscraperScrape):
             seq_present = count_dict["seq_present"]
             query_count = count_dict["query_count"]
             new_taxon = count_dict["new_taxon"]
-            #debug(count_dict)
+            debug(count_dict)
             # debug(tax_id)
             if seq_present <= self.threshold:  # add seq to aln
                 if seq_present + query_count <= self.threshold:  # to add all stuff to self.filtered_seq[gi_n]
@@ -3400,6 +3664,22 @@ class FilterBlast(PhyscraperScrape):
                                     # debug(self.filtered_seq)
                                 elif query_count + seq_present <= self.threshold:
                                     self.add_all(tax_id)
+                        elif selectby == "random":
+                            if seq_present < self.threshold:
+                                # add needed number of seq
+                                # for i in 1:(self.threshold - seq_present):
+                                #     print(i)
+                                print(self.threshold, seq_present)
+                                random_seq_ofsp = random.sample(self.sp_seq_d[tax_id].keys(), (self.threshold - seq_present))
+                                print(random_seq_ofsp)
+                                if len(random_seq_ofsp) > 0:  # add everything to filtered seq
+                                    for key in random_seq_ofsp:
+                                        # print("sp_seq_d")
+
+                                        print(self.filtered_seq.keys())
+                                        print(self.new_seqs.keys())
+                                        self.filtered_seq[key] = self.new_seqs[key]
+
         # debug(self.filtered_seq)
         return
 
