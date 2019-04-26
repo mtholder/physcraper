@@ -1955,21 +1955,22 @@ class PhyscraperScrape(object):
                 stitle = salltitles
                 # get additional info only for seq that pass the eval
                 if evalue < float(self.config.e_value_thresh):
-                    # NOTE: sometimes there are seq which are identical & are combined in the local blast db...
-                    # Get all of them! (they can be of a different taxon ids = get redundant seq info)
-                    if len(sallseqid.split(";")) > 1:
-                        var_list = [gb_acc, gi_id, sseq, staxids, sscinames, pident, evalue, bitscore, stitle, sallseqid]
-                        query_dict = self.get_new_seqs_for_mergedseq(var_list, query_dict)
-                        taxids_l = staxids.split(";")
-                    else:  # if there are no non-redundant data
-                        staxids = int(staxids)
-                        self.ids.spn_to_ncbiid[sscinames] = staxids
-                        if gb_acc not in self.ids.acc_ncbi_dict:  # fill up dict with more information.
-                            self.ids.acc_ncbi_dict[gb_acc] = staxids
-                        if gb_acc not in query_dict and gb_acc not in self.newseqs_acc:
-                            query_dict[gb_acc] = {'^ncbi:gi': gi_id, 'accession': gb_acc, 'staxids': staxids,
-                                                  'sscinames': sscinames, 'pident': pident, 'evalue': evalue,
-                                                  'bitscore': bitscore, 'sseq': sseq, 'title': stitle}
+                    if gb_acc not in self.acc_ncbiid.keys(): # do not do it for gb_ids we already considered
+                        # NOTE: sometimes there are seq which are identical & are combined in the local blast db...
+                        # Get all of them! (they can be of a different taxon ids = get redundant seq info)
+                        if len(sallseqid.split(";")) > 1:
+                            var_list = [gb_acc, gi_id, sseq, staxids, sscinames, pident, evalue, bitscore, stitle, sallseqid]
+                            query_dict = self.get_new_seqs_for_mergedseq(var_list, query_dict)
+                            taxids_l = staxids.split(";")
+                        else:  # if there are no non-redundant data
+                            staxids = int(staxids)
+                            self.ids.spn_to_ncbiid[sscinames] = staxids
+                            if gb_acc not in self.ids.acc_ncbi_dict:  # fill up dict with more information.
+                                self.ids.acc_ncbi_dict[gb_acc] = staxids
+                            if gb_acc not in query_dict and gb_acc not in self.newseqs_acc:
+                                query_dict[gb_acc] = {'^ncbi:gi': gi_id, 'accession': gb_acc, 'staxids': staxids,
+                                                      'sscinames': sscinames, 'pident': pident, 'evalue': evalue,
+                                                      'bitscore': bitscore, 'sseq': sseq, 'title': stitle}
         # debug("key in query")
         for key in query_dict.keys():
             if float(query_dict[key]["evalue"]) < float(self.config.e_value_thresh):
@@ -1999,24 +2000,24 @@ class PhyscraperScrape(object):
         """
         if not os.path.exists("{}/tmp".format(self.workdir)):
             os.mkdir("{}/tmp".format(self.workdir))
-        fn = "{}/tmp/tmp_search.csv".format(self.workdir)
-        fn_open = open(fn, "w+")                                        
-        fn_open.write("{}\n".format(gb_acc))
-        fn_open.close()
-        cmd1 = "blastdbcmd -db {}/nt  -entry_batch {} -outfmt %T -out {}/tmp/tax_id_{}.csv".format(self.config.blastdb, fn, self.workdir, gb_acc)
         if not self.config.blastdb == "./tests/data/precooked/testing_localdb":
-            os.system(cmd1)
-            f = open("{}/tmp/tax_id_{}.csv".format(self.workdir, gb_acc))
-            tax_id_l = []
-            for line in iter(f):
-                line = line.rstrip().lstrip()
-                tax_id_l.append(int(line))
+            file_to_open = "{}/tmp/tax_id_{}.csv".format(self.workdir, gb_acc)
+            if not os.path.exists(file_to_open) or os.stat(file_to_open).st_size == 0:
+                fn = "{}/tmp/tmp_search.csv".format(self.workdir)
+                fn_open = open(fn, "w+")                                        
+                fn_open.write("{}\n".format(gb_acc))
+                fn_open.close()
+                cmd1 = "blastdbcmd -db {}/nt  -entry_batch {} -outfmt %T -out {}/tmp/tax_id_{}.csv".format(self.config.blastdb, fn, self.workdir, gb_acc)
+                os.system(cmd1)
         else: 
-            f = open("./tests/data/precooked/testing_localdb/tax_id_{}.csv".format(gb_acc))
-            tax_id_l = []
-            for line in iter(f):
-                line = line.rstrip().lstrip()
-                tax_id_l.append(int(line))
+            # debug("open from testing precooked files")
+            file_to_open = "./tests/data/precooked/testing_localdb/tax_id_{}.csv".format(gb_acc)
+        print(file_to_open)
+        f = open(file_to_open)
+        tax_id_l = []
+        for line in iter(f):
+            line = line.rstrip().lstrip()
+            tax_id_l.append(int(line))
         f.close() 
         return tax_id_l
 

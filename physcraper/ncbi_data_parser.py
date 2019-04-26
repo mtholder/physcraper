@@ -247,6 +247,7 @@ class Parser:
     def get_name_from_id(self, tax_id):
         """ Find the scientific name for a given ID.
         """
+        assert type(tax_id) is int, (tax_id, type(tax_id))
         try:
             if names is None:
                 self.initialize()
@@ -274,6 +275,8 @@ class Parser:
     def get_id_from_name(self, tax_name):
         """ Find the ID for a given taxonomic name.
         """
+        assert type(tax_name) is str, (tax_name, type(tax_name))
+
         if names is None:
             self.initialize()
         org_tax = tax_name
